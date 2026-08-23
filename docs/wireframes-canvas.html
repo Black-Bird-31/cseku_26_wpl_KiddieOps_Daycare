@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KiddieOps — Visual UI/UX Wireframe Canvas Board (Week 2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-canvas: #0f172a;
+      --grid-line: #1e293b;
+      --card-bg: #ffffff;
+      --card-border: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --primary-border: #93c5fd;
+      --accent: #f59e0b;
+      --accent-light: #fef3c7;
+      --danger: #ef4444;
+      --danger-light: #fee2e2;
+      --success: #10b981;
+      --success-light: #d1fae5;
+      --wire-gray: #f8fafc;
+      --wire-border: #94a3b8;
+      --wire-element: #e2e8f0;
+      --wire-dark: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-canvas);
+      background-image: 
+        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+      background-size: 32px 32px;
+      color: #f8fafc;
+      min-height: 100vh;
+      overflow-x: auto;
+      padding-bottom: 60px;
+    }
+
+    /* Top App Header & Canvas Controls */
+    header.canvas-nav {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid #334155;
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: white;
+      font-weight: 800;
+      font-size: 1.1rem;
+      padding: 6px 12px;
+      border-radius: 8px;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .canvas-title h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .canvas-title p {
+      font-size: 0.78rem;
+      color: #94a3b8;
+    }
+
+    .filter-pills {
+      display: flex;
+      background: #1e293b;
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      gap: 4px;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-btn.active, .filter-btn:hover {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .legend-badges {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+    }
+
+    .legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+
+    /* Main Canvas Layout */
+    .canvas-container {
+      padding: 32px 40px;
+      max-width: 1800px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin: 36px 0 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #334155;
+    }
+
+    .section-title .badge {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .badge-admin { background: #3b82f6; color: white; }
+    .badge-caregiver { background: #10b981; color: white; }
+    .badge-parent { background: #f59e0b; color: white; }
+    .badge-auth { background: #8b5cf6; color: white; }
+
+    .wireframe-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+      gap: 32px;
+      align-items: start;
+    }
+
+    .wireframe-grid.grid-mobile {
+      grid-template-columns: repeat(auto-fit, minmax(360px, 420px));
+    }
+
+    /* Artboard / Frame Style */
+    .artboard {
+      background: var(--card-bg);
+      color: var(--text-main);
+      border-radius: 16px;
+      border: 2px solid #475569;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .artboard:hover {
+      border-color: #60a5fa;
+      transform: translateY(-2px);
+    }
+
+    .artboard-header {
+      background: #f1f5f9;
+      border-bottom: 2px solid #cbd5e1;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .artboard-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .artboard-req {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      background: #e2e8f0;
+      color: #334155;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .artboard-body {
+      padding: 20px;
+      background: #ffffff;
+      min-height: 400px;
+    }
+
+    /* Generic UI Wireframe Primitives */
+    .wf-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .wf-logo {
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .wf-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .wf-avatar {
+      width: 28px;
+      height: 28px;
+      background: #cbd5e1;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: bold;
+    }
+
+    .wf-sidebar-layout {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 16px;
+      min-height: 380px;
+    }
+
+    .wf-sidebar {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .wf-nav-item {
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #475569;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .wf-nav-item.active {
+      background: #2563eb;
+      color: white;
+    }
+
+    .wf-content {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Cards and Stats */
+    .wf-stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 10px;
+    }
+
+    .wf-stat-card {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .wf-stat-value {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .wf-stat-label {
+      font-size: 0.68rem;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    /* Tables */
+    .wf-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .wf-table th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid #cbd5e1;
+    }
+
+    .wf-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #1e293b;
+    }
+
+    .wf-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Status Badges */
+    .wf-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-present { background: var(--success-light); color: #065f46; border: 1px solid #a7f3d0; }
+    .badge-absent { background: var(--danger-light); color: #991b1b; border: 1px solid #fecaca; }
+    .badge-late { background: var(--accent-light); color: #92400e; border: 1px solid #fde68a; }
+    .badge-alert { background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; font-weight: 800; }
+    .badge-pending { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .badge-resolved { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+
+    /* Inputs & Forms */
+    .wf-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .wf-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .wf-input {
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      background: #ffffff;
+      color: #0f172a;
+      width: 100%;
+    }
+
+    .wf-select {
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      background: #f8fafc;
+      color: #0f172a;
+      width: 100%;
+    }
+
+    .wf-btn {
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+
+    .wf-btn-primary { background: #2563eb; color: white; }
+    .wf-btn-secondary { background: #e2e8f0; color: #334155; }
+    .wf-btn-danger { background: #ef4444; color: white; }
+    .wf-btn-success { background: #10b981; color: white; }
+    .wf-btn-sm { padding: 4px 8px; font-size: 0.68rem; }
+
+    /* Chat Elements */
+    .wf-chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 12px;
+      min-height: 260px;
+    }
+
+    .wf-bubble {
+      max-width: 82%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      line-height: 1.4;
+    }
+
+    .wf-bubble-user {
+      align-self: flex-end;
+      background: #2563eb;
+      color: white;
+      border-bottom-right-radius: 2px;
+    }
+
+    .wf-bubble-ai {
+      align-self: flex-start;
+      background: #ffffff;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+      border-bottom-left-radius: 2px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .wf-bubble-ai .ai-tag {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #7c3aed;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .wf-quick-prompts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0;
+    }
+
+    .wf-prompt-pill {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      font-size: 0.68rem;
+      padding: 4px 8px;
+      border-radius: 14px;
+      font-weight: 600;
+    }
+
+    /* Mobile Frame Wrapper */
+    .mobile-screen {
+      border: 3px solid #334155;
+      border-radius: 24px;
+      padding: 12px;
+      background: #ffffff;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+
+    .mobile-notch {
+      width: 120px;
+      height: 16px;
+      background: #334155;
+      border-radius: 0 0 10px 10px;
+      margin: -12px auto 12px auto;
+    }
+
+    .mobile-tabbar {
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+      border-top: 1px solid #e2e8f0;
+      margin-top: 12px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    .mobile-tabbar .tab-item.active {
+      color: #2563eb;
+    }
+
+    /* Activity Feed Items */
+    .wf-feed-item {
+      display: flex;
+      gap: 10px;
+      padding: 8px 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      font-size: 0.73rem;
+      align-items: center;
+    }
+
+    .wf-feed-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      background: #e2e8f0;
+    }
+
+    /* Media Gallery Grid */
+    .wf-gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .wf-media-card {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .wf-media-thumb {
+      height: 110px;
+      background: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .wf-media-caption {
+      padding: 6px 8px;
+      font-size: 0.68rem;
+      color: #1e293b;
+      background: #ffffff;
+    }
+
+    /* Micro Wireframe Canvas Map */
+    .canvas-overview-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .overview-text h2 {
+      font-size: 1.1rem;
+      color: #f8fafc;
+      margin-bottom: 4px;
+    }
+
+    .overview-text p {
+      font-size: 0.82rem;
+      color: #94a3b8;
+    }
+
+    .overview-stats {
+      display: flex;
+      gap: 24px;
+    }
+
+    .overview-stat-item {
+      text-align: right;
+    }
+
+    .overview-stat-item .num {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #60a5fa;
+    }
+
+    .overview-stat-item .lbl {
+      font-size: 0.72rem;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation & Interactive Controls -->
+  <header class="canvas-nav">
+    <div class="brand-section">
+      <div class="logo-badge">KiddieOps</div>
+      <div class="canvas-title">
+        <h1>Visual UI/UX Wireframe Canvas Board</h1>
+        <p>Week 2 Design & Planning — Comprehensive Role-Based Screen Mockups (Including Complaints with Proof & Media Sharing)</p>
+      </div>
+    </div>
+
+    <div class="filter-pills">
+      <button class="filter-btn active" onclick="filterRole('all')">All Screens (14)</button>
+      <button class="filter-btn" onclick="filterRole('auth')">Auth (1)</button>
+      <button class="filter-btn" onclick="filterRole('admin')">Admin (5)</button>
+      <button class="filter-btn" onclick="filterRole('caregiver')">Caregiver (4)</button>
+      <button class="filter-btn" onclick="filterRole('parent')">Parent & AI (5)</button>
+    </div>
+
+    <div class="legend-badges">
+      <span><span class="legend-dot" style="background:#8b5cf6;"></span>Auth</span>
+      <span><span class="legend-dot" style="background:#3b82f6;"></span>Admin</span>
+      <span><span class="legend-dot" style="background:#10b981;"></span>Caregiver</span>
+      <span><span class="legend-dot" style="background:#f59e0b;"></span>Parent/AI</span>
+    </div>
+  </header>
+
+  <div class="canvas-container">
+
+    <!-- Canvas Overview Card -->
+    <div class="canvas-overview-card">
+      <div class="overview-text">
+        <h2>Interactive UI Architecture & Screen Mockups Canvas</h2>
+        <p>Grounded in <code>KiddieOps_SRS.docx</code> requirements (REQ01–REQ41, EI01–EI02). All role-based perspectives represented.</p>
+      </div>
+      <div class="overview-stats">
+        <div class="overview-stat-item">
+          <div class="num">14</div>
+          <div class="lbl">Screen Artboards</div>
+        </div>
+        <div class="overview-stat-item">
+          <div class="num">3</div>
+          <div class="lbl">Roles + Auth</div>
+        </div>
+        <div class="overview-stat-item">
+          <div class="num">100%</div>
+          <div class="lbl">SRS Traceability</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SECTION 1: AUTHENTICATION & ACCESS CONTROL -->
+    <!-- ========================================== -->
+    <div class="section-group" data-role="auth">
+      <div class="section-title">
+        <span>1. Authentication & Common Gateway</span>
+        <span class="badge badge-auth">Universal Access</span>
+      </div>
+
+      <div class="wireframe-grid">
+        <!-- WF-01: Universal Login Screen -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-01: Unified Login Screen</span>
+            </div>
+            <span class="artboard-req">REQ01 · REQ02 · REQ03</span>
+          </div>
+          <div class="artboard-body" style="display:flex; justify-content:center; align-items:center; background:#f8fafc; min-height:420px;">
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:28px 24px; width:100%; max-width:340px; box-shadow:0 4px 12px rgba(0,0,0,0.06); text-align:center;">
+              <div style="font-weight:800; font-size:1.3rem; color:#0f172a; margin-bottom:4px;">KiddieOps</div>
+              <div style="font-size:0.75rem; color:#64748b; margin-bottom:20px;">Smart Daycare Management & AI Platform</div>
+
+              <div class="wf-form-group" style="text-align:left;">
+                <label class="wf-label">Email Address</label>
+                <input class="wf-input" type="email" value="parent@example.com" placeholder="name@domain.com">
+              </div>
+
+              <div class="wf-form-group" style="text-align:left;">
+                <label class="wf-label">Password</label>
+                <input class="wf-input" type="password" value="••••••••••••" placeholder="Enter password">
+              </div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; font-size:0.7rem;">
+                <label style="color:#475569;"><input type="checkbox" checked> Remember me</label>
+                <span style="color:#2563eb; font-weight:600; cursor:pointer;">Need Help?</span>
+              </div>
+
+              <button class="wf-btn wf-btn-primary" style="width:100%; padding:10px; font-size:0.85rem; margin-bottom:16px;">Sign In to Dashboard</button>
+
+              <div style="background:#f1f5f9; padding:8px; border-radius:6px; font-size:0.68rem; color:#475569; text-align:left;">
+                <strong>RBAC Routing Notice:</strong> System verifies role in database after auth and automatically redirects to:
+                <div style="display:flex; gap:4px; margin-top:4px;">
+                  <span class="wf-badge" style="background:#dbeafe; color:#1e40af;">Admin</span>
+                  <span class="wf-badge" style="background:#d1fae5; color:#065f46;">Caregiver</span>
+                  <span class="wf-badge" style="background:#fef3c7; color:#92400e;">Parent</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SECTION 2: ADMINISTRATOR ROLE INTERFACES  -->
+    <!-- ========================================== -->
+    <div class="section-group" data-role="admin">
+      <div class="section-title">
+        <span>2. Administrator Management Suite</span>
+        <span class="badge badge-admin">Role: Administrator</span>
+      </div>
+
+      <div class="wireframe-grid">
+        <!-- WF-02: Admin Dashboard -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-02: Administrator Overview Dashboard</span>
+            </div>
+            <span class="artboard-req">REQ29</span>
+          </div>
+          <div class="artboard-body">
+            <div class="wf-sidebar-layout">
+              <div class="wf-sidebar">
+                <div class="wf-logo">KiddieOps</div>
+                <div style="font-size:0.65rem; color:#94a3b8; margin-bottom:6px;">ADMIN PORTAL</div>
+                <div class="wf-nav-item active">📊 Dashboard</div>
+                <div class="wf-nav-item">👶 Children</div>
+                <div class="wf-nav-item">👩‍🏫 Caregivers</div>
+                <div class="wf-nav-item">🏫 Classrooms</div>
+                <div class="wf-nav-item">⚠️ Complaints</div>
+                <div class="wf-nav-item">📢 Notices</div>
+                <div class="wf-nav-item">🩺 Medical Logs</div>
+              </div>
+
+              <div class="wf-content">
+                <div class="wf-header" style="margin-bottom:0;">
+                  <div style="font-weight:700; font-size:0.85rem;">Daycare Operations Overview</div>
+                  <div class="wf-user">
+                    <div class="wf-avatar">AD</div>
+                    <span>Admin User</span>
+                  </div>
+                </div>
+
+                <div class="wf-stat-row">
+                  <div class="wf-stat-card">
+                    <div class="wf-stat-value">38</div>
+                    <div class="wf-stat-label">Enrolled Kids</div>
+                  </div>
+                  <div class="wf-stat-card">
+                    <div class="wf-stat-value" style="color:#10b981;">34</div>
+                    <div class="wf-stat-label">Present Today</div>
+                  </div>
+                  <div class="wf-stat-card">
+                    <div class="wf-stat-value">8</div>
+                    <div class="wf-stat-label">Caregivers</div>
+                  </div>
+                  <div class="wf-stat-card">
+                    <div class="wf-stat-value" style="color:#ef4444;">2</div>
+                    <div class="wf-stat-label">Pending Complaints</div>
+                  </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                  <div style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#f8fafc;">
+                    <div style="font-size:0.75rem; font-weight:700; margin-bottom:8px;">Classroom Enrollment</div>
+                    <div style="font-size:0.7rem; margin-bottom:4px; display:flex; justify-content:space-between;">
+                      <span>Sunflower (Toddlers)</span> <strong>12 / 15</strong>
+                    </div>
+                    <div style="background:#e2e8f0; height:6px; border-radius:3px; margin-bottom:8px;"><div style="background:#3b82f6; width:80%; height:100%; border-radius:3px;"></div></div>
+                    <div style="font-size:0.7rem; margin-bottom:4px; display:flex; justify-content:space-between;">
+                      <span>Sprout (Infants)</span> <strong>8 / 10</strong>
+                    </div>
+                    <div style="background:#e2e8f0; height:6px; border-radius:3px;"><div style="background:#10b981; width:80%; height:100%; border-radius:3px;"></div></div>
+                  </div>
+
+                  <div style="border:1px solid #cbd5e1; border-radius:8px; padding:10px; background:#f8fafc;">
+                    <div style="font-size:0.75rem; font-weight:700; margin-bottom:8px;">Quick Operations</div>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                      <button class="wf-btn wf-btn-primary wf-btn-sm">+ Register New Child</button>
+                      <button class="wf-btn wf-btn-secondary wf-btn-sm">⚠️ Review Parent Complaints (REQ39)</button>
+                      <button class="wf-btn wf-btn-secondary wf-btn-sm">📢 Publish Center Notice</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WF-03: Child Registration & Profile Manager -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-03: Child Registration & Enrollment</span>
+            </div>
+            <span class="artboard-req">REQ08 · REQ09 · REQ14</span>
+          </div>
+          <div class="artboard-body">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div style="font-weight:700; font-size:0.85rem;">Enrolled Children Roster</div>
+              <button class="wf-btn wf-btn-primary wf-btn-sm">+ Add Child</button>
+            </div>
+
+            <table class="wf-table" style="margin-bottom:14px;">
+              <thead>
+                <tr>
+                  <th>Child Name</th>
+                  <th>DOB</th>
+                  <th>Classroom</th>
+                  <th>Allergy Flag</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Liam Johnson</strong></td>
+                  <td>2022-04-15</td>
+                  <td>Sunflower Class</td>
+                  <td><span class="wf-badge badge-alert">⚠️ PEANUT</span></td>
+                  <td><button class="wf-btn wf-btn-secondary wf-btn-sm">Edit</button></td>
+                </tr>
+                <tr>
+                  <td><strong>Ayaan Rahman</strong></td>
+                  <td>2023-01-10</td>
+                  <td>Sprout Class</td>
+                  <td><span class="wf-badge" style="background:#e2e8f0; color:#64748b;">None</span></td>
+                  <td><button class="wf-btn wf-btn-secondary wf-btn-sm">Edit</button></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style="background:#f8fafc; border:1px dashed #3b82f6; border-radius:8px; padding:12px;">
+              <div style="font-size:0.75rem; font-weight:700; color:#1e40af; margin-bottom:8px;">[Modal] Add / Edit Child Profile Form</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div class="wf-form-group">
+                  <label class="wf-label">Child Full Name *</label>
+                  <input class="wf-input" value="Liam Johnson">
+                </div>
+                <div class="wf-form-group">
+                  <label class="wf-label">Date of Birth *</label>
+                  <input class="wf-input" type="date" value="2022-04-15">
+                </div>
+              </div>
+              <div class="wf-form-group">
+                <label class="wf-label">Emergency Contact & Phone (REQ08)</label>
+                <input class="wf-input" value="Grandmother (Martha) — +880 1711-223344">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WF-04: Admin Complaint Management & Resolution -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-04: Admin Complaint Resolution</span>
+            </div>
+            <span class="artboard-req">REQ39</span>
+          </div>
+          <div class="artboard-body">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-weight:700; font-size:0.85rem;">Parent Complaints vs Caregivers</div>
+              <span class="wf-badge badge-pending">2 Pending Triage</span>
+            </div>
+
+            <table class="wf-table" style="margin-bottom:12px;">
+              <thead>
+                <tr>
+                  <th>Parent</th>
+                  <th>Target Caregiver</th>
+                  <th>Title</th>
+                  <th>Proof</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Sarah J.</strong></td>
+                  <td>Riya Khan</td>
+                  <td>Lack of supervision during play</td>
+                  <td><span class="wf-badge" style="background:#dbeafe; color:#1e40af;">📷 photo.jpg</span></td>
+                  <td><span class="wf-badge badge-pending">Pending</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Karim M.</strong></td>
+                  <td>Nusrat Jahan</td>
+                  <td>Late diaper change</td>
+                  <td><span class="wf-badge" style="background:#f1f5f9; color:#64748b;">None</span></td>
+                  <td><span class="wf-badge badge-resolved">Resolved</span></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Investigation & Resolution Panel -->
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px;">
+              <div style="font-size:0.75rem; font-weight:700; color:#0f172a; margin-bottom:6px;">Investigation Detail: COMP-101 (Sarah J. vs Riya Khan)</div>
+              <div style="font-size:0.72rem; color:#475569; margin-bottom:8px; background:#ffffff; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                <em>"Riya was using her phone while Liam was crying for 15 minutes in playground. Photo attached."</em>
+              </div>
+              <div class="wf-form-group">
+                <label class="wf-label">Admin Resolution Notes & Action</label>
+                <textarea class="wf-input" style="height:50px; resize:none;">Reviewed CCTV footage. Spoke with Riya Khan and issued formal counseling. Followed up with Sarah J.</textarea>
+              </div>
+              <div style="display:flex; justify-content:flex-end; gap:6px;">
+                <button class="wf-btn wf-btn-secondary wf-btn-sm">Dismiss</button>
+                <button class="wf-btn wf-btn-primary wf-btn-sm">Mark Under Review</button>
+                <button class="wf-btn wf-btn-success wf-btn-sm">✅ Resolve & Notify Parent</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WF-05: Notice Board Publisher -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-05: Daycare Notice Publisher</span>
+            </div>
+            <span class="artboard-req">REQ25 · REQ26</span>
+          </div>
+          <div class="artboard-body">
+            <div style="font-weight:700; font-size:0.85rem; margin-bottom:10px;">Publish Announcement / Notice</div>
+            
+            <div class="wf-form-group">
+              <label class="wf-label">Notice Title *</label>
+              <input class="wf-input" value="Daycare Closure for Public Holiday & Vaccine Drive">
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div class="wf-form-group">
+                <label class="wf-label">Audience Scope (REQ26)</label>
+                <select class="wf-select">
+                  <option>Center-Wide (All Parents)</option>
+                  <option>Sunflower Class Only</option>
+                  <option>Sprout Class Only</option>
+                </select>
+              </div>
+              <div class="wf-form-group">
+                <label class="wf-label">Publish Date</label>
+                <input class="wf-input" type="date" value="2026-08-22">
+              </div>
+            </div>
+
+            <div class="wf-form-group">
+              <label class="wf-label">Notice Body Description *</label>
+              <textarea class="wf-input" style="height:70px; resize:none;">Please be advised that the facility will be closed this coming Sunday.</textarea>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+              <button class="wf-btn wf-btn-primary wf-btn-sm">📢 Publish Notice</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SECTION 3: CAREGIVER / TEACHER INTERFACES -->
+    <!-- ========================================== -->
+    <div class="section-group" data-role="caregiver">
+      <div class="section-title">
+        <span>3. Caregiver Daily Operations</span>
+        <span class="badge badge-caregiver">Role: Caregiver</span>
+      </div>
+
+      <div class="wireframe-grid">
+        <!-- WF-06: Caregiver Dashboard -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-06: Caregiver Active Dashboard</span>
+            </div>
+            <span class="artboard-req">REQ28</span>
+          </div>
+          <div class="artboard-body">
+            <div class="wf-header">
+              <div>
+                <div style="font-weight:700; font-size:0.85rem;">Sunflower Classroom</div>
+                <div style="font-size:0.68rem; color:#64748b;">Caregiver: Riya Khan · 12 Toddlers</div>
+              </div>
+              <div class="wf-badge badge-present">8 PRESENT NOW</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:14px;">
+              <button class="wf-btn wf-btn-primary wf-btn-sm" style="flex-direction:column; padding:12px 6px;">
+                <span style="font-size:1.1rem;">📋</span> Take Attendance
+              </button>
+              <button class="wf-btn wf-btn-secondary wf-btn-sm" style="flex-direction:column; padding:12px 6px;">
+                <span style="font-size:1.1rem;">📝</span> Log Activity
+              </button>
+              <button class="wf-btn wf-btn-secondary wf-btn-sm" style="flex-direction:column; padding:12px 6px;">
+                <span style="font-size:1.1rem;">📸</span> Post Photo/Video
+              </button>
+            </div>
+
+            <div style="font-size:0.75rem; font-weight:700; margin-bottom:8px;">Recent Classroom Logs Today</div>
+            <div class="wf-feed-item">
+              <div class="wf-feed-icon">🍲</div>
+              <div style="flex:1;">
+                <strong>Lunch recorded</strong> — Liam Johnson ate 90% portion
+              </div>
+              <span style="color:#94a3b8; font-size:0.65rem;">12:30 PM</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- WF-07: Classroom Attendance Sheet -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-07: Daily Attendance Roster</span>
+            </div>
+            <span class="artboard-req">REQ15 · REQ17</span>
+          </div>
+          <div class="artboard-body">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-size:0.78rem; font-weight:700;">Date: <strong>Today (2026-08-21)</strong></div>
+              <button class="wf-btn wf-btn-primary wf-btn-sm">Save Roster</button>
+            </div>
+
+            <table class="wf-table">
+              <thead>
+                <tr>
+                  <th>Child</th>
+                  <th>Status</th>
+                  <th>In</th>
+                  <th>Out</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Liam J.</strong></td>
+                  <td><span class="wf-badge badge-present">Present</span></td>
+                  <td><input class="wf-input" style="padding:2px 4px; width:55px;" value="08:30"></td>
+                  <td><input class="wf-input" style="padding:2px 4px; width:55px;" placeholder="--:--"></td>
+                </tr>
+                <tr>
+                  <td><strong>Ayaan R.</strong></td>
+                  <td><span class="wf-badge badge-late">Late</span></td>
+                  <td><input class="wf-input" style="padding:2px 4px; width:55px;" value="09:45"></td>
+                  <td><input class="wf-input" style="padding:2px 4px; width:55px;" placeholder="--:--"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- WF-08: Caregiver Photo & Video Uploader -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-08: Child Photo/Video Uploader</span>
+            </div>
+            <span class="artboard-req">REQ40</span>
+          </div>
+          <div class="artboard-body">
+            <div style="font-weight:700; font-size:0.85rem; margin-bottom:10px;">Share Child Moment (Photo/Video)</div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div class="wf-form-group">
+                <label class="wf-label">Tag Specific Child or Class (REQ40)</label>
+                <select class="wf-select">
+                  <option>Liam Johnson (Sunflower Class)</option>
+                  <option>Sunflower Class (Entire Group)</option>
+                </select>
+              </div>
+              <div class="wf-form-group">
+                <label class="wf-label">Media Type</label>
+                <select class="wf-select"><option>📸 Photo</option><option>🎥 Video Clip</option></select>
+              </div>
+            </div>
+
+            <!-- Upload Area -->
+            <div style="border:2px dashed #3b82f6; background:#eff6ff; border-radius:8px; padding:20px; text-align:center; margin-bottom:10px;">
+              <div style="font-size:1.4rem;">📷</div>
+              <div style="font-size:0.75rem; font-weight:700; color:#1e40af;">Drag & Drop or Tap to Upload</div>
+              <div style="font-size:0.65rem; color:#64748b;">Supports JPG, PNG, MP4 up to 50MB (Cloudinary CDN)</div>
+              <div style="margin-top:6px; display:inline-block; background:#ffffff; border:1px solid #bfdbfe; padding:3px 8px; border-radius:4px; font-size:0.68rem; color:#1d4ed8;">
+                ✓ painting_arts_liam.jpg (2.4 MB)
+              </div>
+            </div>
+
+            <div class="wf-form-group">
+              <label class="wf-label">Caption / Activity Description</label>
+              <input class="wf-input" value="Liam created a beautiful sunflower painting during arts & crafts!">
+            </div>
+
+            <button class="wf-btn wf-btn-primary wf-btn-sm" style="width:100%;">Post Moment to Parent Gallery</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SECTION 4: PARENT & AI GUARDIAN ASSISTANT  -->
+    <!-- ========================================== -->
+    <div class="section-group" data-role="parent">
+      <div class="section-title">
+        <span>4. Parent Portal, Media Gallery & Complaints</span>
+        <span class="badge badge-parent">Role: Parent/Guardian</span>
+      </div>
+
+      <div class="wireframe-grid grid-mobile">
+        <!-- WF-09: Parent Mobile Dashboard -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-09: Parent Mobile Dashboard</span>
+            </div>
+            <span class="artboard-req">REQ27</span>
+          </div>
+          <div class="artboard-body" style="background:#f1f5f9; padding:12px;">
+            <div class="mobile-screen">
+              <div class="mobile-notch"></div>
+              
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div style="font-weight:800; font-size:0.9rem; color:#0f172a;">KiddieOps</div>
+                <div style="font-size:0.7rem; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:12px; font-weight:700;">
+                  Child: Liam J. ▾
+                </div>
+              </div>
+
+              <!-- Severe Allergy Banner (REQ24) -->
+              <div style="background:#fee2e2; border:1px solid #f87171; border-radius:8px; padding:8px 10px; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1rem;">⚠️</span>
+                <div style="font-size:0.68rem; color:#991b1b; font-weight:700;">
+                  Medical Alert: Severe Peanut Allergy on file.
+                </div>
+              </div>
+
+              <!-- Quick Status -->
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px;">
+                <div class="wf-stat-card" style="padding:6px;">
+                  <div style="font-size:0.65rem; color:#64748b;">TODAY'S STATUS</div>
+                  <div style="font-size:0.85rem; font-weight:800; color:#10b981;">Present</div>
+                  <div style="font-size:0.65rem; color:#64748b;">In: 8:30 AM</div>
+                </div>
+                <div class="wf-stat-card" style="padding:6px;">
+                  <div style="font-size:0.65rem; color:#64748b;">NEW MOMENTS</div>
+                  <div style="font-size:0.85rem; font-weight:800; color:#2563eb;">2 Photos</div>
+                  <div style="font-size:0.65rem; color:#64748b;">By Teacher Riya</div>
+                </div>
+              </div>
+
+              <!-- Quick Link to Gallery & Complaints -->
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+                <button class="wf-btn wf-btn-secondary wf-btn-sm" style="font-size:0.68rem;">📸 Media Gallery (REQ41)</button>
+                <button class="wf-btn wf-btn-secondary wf-btn-sm" style="font-size:0.68rem; color:#b91c1c;">⚠️ File Complaint (REQ38)</button>
+              </div>
+
+              <!-- AI Guardian CTA -->
+              <div style="background:linear-gradient(135deg, #4f46e5, #7c3aed); color:white; border-radius:10px; padding:10px; margin-top:8px; text-align:center;">
+                <div style="font-size:0.75rem; font-weight:800;">✨ Ask AI Guardian</div>
+                <div style="font-size:0.65rem; opacity:0.9; margin-bottom:6px;">Get personalized insights about Liam's day</div>
+                <button class="wf-btn wf-btn-sm" style="background:white; color:#4f46e5; width:100%;">Open Chat</button>
+              </div>
+
+              <!-- Tab bar -->
+              <div class="mobile-tabbar">
+                <span class="tab-item active">🏠 Home</span>
+                <span class="tab-item">📸 Gallery</span>
+                <span class="tab-item">✨ AI Chat</span>
+                <span class="tab-item">⚠️ Report</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WF-10: Parent Child Media Gallery -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-10: Child Media Gallery</span>
+            </div>
+            <span class="artboard-req">REQ41</span>
+          </div>
+          <div class="artboard-body" style="background:#f1f5f9; padding:12px;">
+            <div class="mobile-screen">
+              <div class="mobile-notch"></div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="font-weight:800; font-size:0.85rem; color:#0f172a;">📸 Liam's Media Gallery</div>
+                <div style="font-size:0.65rem; color:#64748b;">August 2026</div>
+              </div>
+
+              <!-- Gallery Grid (REQ41) -->
+              <div class="wf-gallery-grid">
+                <div class="wf-media-card">
+                  <div class="wf-media-thumb" style="background:#fed7aa;">🎨 [Photo] Arts & Craft</div>
+                  <div class="wf-media-caption">
+                    <strong>Liam painting</strong><br>
+                    <span style="font-size:0.6rem; color:#64748b;">Today, 10:30 AM · Riya K.</span>
+                  </div>
+                </div>
+
+                <div class="wf-media-card">
+                  <div class="wf-media-thumb" style="background:#bfdbfe;">▶️ [Video] Story Time</div>
+                  <div class="wf-media-caption">
+                    <strong>Listening to story</strong><br>
+                    <span style="font-size:0.6rem; color:#64748b;">Yesterday, 3:15 PM · Riya K.</span>
+                  </div>
+                </div>
+
+                <div class="wf-media-card">
+                  <div class="wf-media-thumb" style="background:#bbf7d0;">🌳 [Photo] Garden Play</div>
+                  <div class="wf-media-caption">
+                    <strong>Watering plants</strong><br>
+                    <span style="font-size:0.6rem; color:#64748b;">Aug 19, 11:00 AM · Riya K.</span>
+                  </div>
+                </div>
+
+                <div class="wf-media-card">
+                  <div class="wf-media-thumb" style="background:#fbcfe8;">🍲 [Photo] Lunch Time</div>
+                  <div class="wf-media-caption">
+                    <strong>Finishing veggies</strong><br>
+                    <span style="font-size:0.6rem; color:#64748b;">Aug 18, 12:45 PM · Riya K.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="margin-top:10px; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:6px; font-size:0.65rem; color:#64748b; text-align:center;">
+                🔒 <em>Privacy Protected: You can only view photos/videos tagged for Liam Johnson (REQ41).</em>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WF-11: Parent Complaint Filing with Proof -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-11: File Complaint with Proof</span>
+            </div>
+            <span class="artboard-req">REQ38</span>
+          </div>
+          <div class="artboard-body" style="background:#f1f5f9; padding:12px;">
+            <div class="mobile-screen">
+              <div class="mobile-notch"></div>
+
+              <div style="font-weight:800; font-size:0.85rem; color:#b91c1c; margin-bottom:8px;">⚠️ Submit Formal Complaint</div>
+
+              <div class="wf-form-group">
+                <label class="wf-label">Caregiver / Staff Member * (REQ38)</label>
+                <select class="wf-select"><option>Riya Khan (Sunflower Room Caregiver)</option></select>
+              </div>
+
+              <div class="wf-form-group">
+                <label class="wf-label">Complaint Title / Incident *</label>
+                <input class="wf-input" value="Unattended crying incident during outdoor play">
+              </div>
+
+              <div class="wf-form-group">
+                <label class="wf-label">Incident Description & Details *</label>
+                <textarea class="wf-input" style="height:55px; resize:none; font-size:0.7rem;">Riya Khan was distracted on phone while Liam was left unattended near the climbing frame.</textarea>
+              </div>
+
+              <!-- Proof Attachment Box -->
+              <div class="wf-form-group">
+                <label class="wf-label">Attach Proof Photo / Document (Optional)</label>
+                <div style="border:1px dashed #ef4444; background:#fff5f5; border-radius:6px; padding:8px; text-align:center;">
+                  <div style="font-size:0.7rem; color:#b91c1c; font-weight:700;">📎 Attached: playground_photo.jpg</div>
+                  <div style="font-size:0.62rem; color:#7f1d1d;">Preview ready · Secure Cloudinary upload</div>
+                </div>
+              </div>
+
+              <button class="wf-btn wf-btn-danger wf-btn-sm" style="width:100%; margin-top:6px;">Submit Complaint to Administrator (REQ38)</button>
+
+              <div style="margin-top:8px; font-size:0.62rem; color:#64748b;">
+                🛡️ <em>Complaints are delivered directly to the Administrator and are not visible to caregivers.</em>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WF-12: AI Guardian Assistant Interface -->
+        <div class="artboard">
+          <div class="artboard-header">
+            <div class="artboard-title">
+              <span>WF-12: AI Guardian Chat Assistant</span>
+            </div>
+            <span class="artboard-req">REQ30–REQ37 · EI02</span>
+          </div>
+          <div class="artboard-body" style="background:#f1f5f9; padding:12px;">
+            <div class="mobile-screen">
+              <div class="mobile-notch"></div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="font-weight:800; font-size:0.85rem; color:#0f172a;">✨ AI Guardian</div>
+                <div style="display:flex; gap:4px;">
+                  <button class="wf-btn wf-btn-secondary wf-btn-sm" style="font-size:0.6rem; padding:2px 6px;">EN</button>
+                  <button class="wf-btn wf-btn-primary wf-btn-sm" style="font-size:0.6rem; padding:2px 6px;">বাংলা</button>
+                </div>
+              </div>
+
+              <div style="background:#e0e7ff; border-radius:6px; padding:4px 8px; font-size:0.65rem; color:#3730a3; margin-bottom:8px;">
+                🔒 <strong>Isolated Context:</strong> Liam Johnson (Sunflower Room)
+              </div>
+
+              <div class="wf-chat-container">
+                <div class="wf-bubble wf-bubble-user">
+                  How long did she sleep today compared to her weekly average?
+                </div>
+
+                <div class="wf-bubble wf-bubble-ai">
+                  <span class="ai-tag">✨ AI Guardian (Synthesized Insight)</span>
+                  Liam napped for <strong>1 hour 20 minutes</strong> today. This is about <strong>30 minutes shorter</strong> than her weekly average of 1 hr 50 mins (REQ31, REQ33).
+                </div>
+              </div>
+
+              <div style="display:flex; gap:6px; margin-top:8px;">
+                <input class="wf-input" style="font-size:0.7rem; padding:6px 8px;" placeholder="Ask in English or বাংলা...">
+                <button class="wf-btn wf-btn-primary wf-btn-sm">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function filterRole(role) {
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const sections = document.querySelectorAll('.section-group');
+      sections.forEach(sec => {
+        if (role === 'all' || sec.getAttribute('data-role') === role) {
+          sec.style.display = 'block';
+        } else {
+          sec.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
