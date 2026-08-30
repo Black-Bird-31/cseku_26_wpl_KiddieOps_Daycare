@@ -9,10 +9,13 @@
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx lib/db/migrate.ts",
+    "db:seed": "tsx lib/db/seed.ts",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test": "tsx tests/run-tests.ts"
   },
   "dependencies": {
+    "cloudinary": "^2.11.0",
     "clsx": "^2.1.1",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.33.0",
