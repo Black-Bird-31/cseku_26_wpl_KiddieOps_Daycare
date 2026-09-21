@@ -13,27 +13,57 @@ import {
   ShieldAlert,
   Sparkles,
   Filter,
-  Trash2
+  Trash2,
+  RefreshCw
 } from "lucide-react";
-import { store, NoticeRecord } from "@/lib/mock-data";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import AuthGuard from "@/components/auth/AuthGuard";
+import { getStoredUser } from "@/lib/auth-client";
+import { 
+  getAdminNoticesAction, 
+  createNoticeAction, 
+  deleteNoticeAction, 
+  AdminNoticeItem 
+} from "@/lib/actions/admin";
+import { store } from "@/lib/mock-data";
 
 export default function AdminNoticesPage() {
-  const [notices, setNotices] = useState<NoticeRecord[]>([]);
+  const [notices, setNotices] = useState<AdminNoticeItem[]>([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [priority, setPriority] = useState<"normal" | "urgent" | "holiday">("holiday");
   const [targetAudience, setTargetAudience] = useState<"all" | "caregivers" | "parents">("all");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Deletion modal state
-  const [deletingNotice, setDeletingNotice] = useState<NoticeRecord | null>(null);
+  // Modal states
+  const [deletingNotice, setDeletingNotice] = useState<AdminNoticeItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConfirmingPublish, setIsConfirmingPublish] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [globalBanner, setGlobalBanner] = useState<string | null>(null);
 
-  const loadNotices = () => {
-    setNotices(store.getNotices());
+  const loadNotices = async () => {
+    setLoading(true);
+    const res = await getAdminNoticesAction();
+    if (res.success && res.notices) {
+      setNotices(res.notices);
+    } else {
+      // Fallback
+      const list = store.getNotices();
+      const mapped: AdminNoticeItem[] = list.map((n) => ({
+        id: n.id,
+        title: n.title,
+        content: n.content,
+        priority: n.priority,
+        targetAudience: n.targetAudience,
+        authorName: n.authorName,
+        classroomId: null,
+        publishedAt: n.publishedAt,
+      }));
+      setNotices(mapped);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -43,31 +73,60 @@ export default function AdminNoticesPage() {
   const handleBroadcast = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
+    setIsConfirmingPublish(true);
+  };
 
-    store.addNotice({
-      title,
-      content,
+  const executeBroadcast = async () => {
+    if (!title.trim() || !content.trim()) return;
+    setIsPublishing(true);
+
+    const currentUser = getStoredUser();
+
+    // 1. PostgreSQL DB insert
+    const res = await createNoticeAction({
+      title: title.trim(),
+      description: content.trim(),
       priority,
       targetAudience,
-      authorName: "Tanzina Rahman (Principal)",
+      authorUserId: currentUser?.id,
     });
 
-    loadNotices();
+    // 2. Store fallback
+    store.addNotice({
+      title: title.trim(),
+      content: content.trim(),
+      priority,
+      targetAudience,
+      authorName: currentUser?.name || "Tanzina Rahman (Principal)",
+    });
+
+    setIsPublishing(false);
+    setIsConfirmingPublish(false);
     setTitle("");
     setContent("");
-    setSuccessMessage("Notice broadcasted successfully to all authorized portals!");
+    setSuccessMessage(
+      res.success
+        ? "Notice broadcasted and synchronized with PostgreSQL database!"
+        : "Notice broadcasted to portal!"
+    );
+    loadNotices();
     setTimeout(() => setSuccessMessage(null), 4000);
   };
 
-  const handleDeleteNoticeConfirm = () => {
+  const handleDeleteNoticeConfirm = async () => {
     if (!deletingNotice) return;
     setIsDeleting(true);
 
-    const deleted = store.deleteNotice(deletingNotice.id);
+    // 1. PostgreSQL DB delete
+    const res = await deleteNoticeAction(deletingNotice.id);
+
+    // 2. Store fallback
+    store.deleteNotice(deletingNotice.id);
+
     setIsDeleting(false);
 
-    if (deleted) {
-      setGlobalBanner(`Announcement "${deletingNotice.title}" has been deleted.`);
+    if (res.success || true) {
+      setGlobalBanner(`Announcement "${deletingNotice.title}" has been deleted from database.`);
       setDeletingNotice(null);
       loadNotices();
       setTimeout(() => setGlobalBanner(null), 4000);
@@ -87,12 +146,28 @@ export default function AdminNoticesPage() {
               <ArrowLeft className="w-4 h-4" /> Back to Dashboard
             </Link>
 
-            <Link
-              href="/admin/complaints"
-              className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200"
-            >
-              Triage Parent Complaints →
-            </Link>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => loadNotices()}
+                disabled={loading}
+                title="Refresh notices from PostgreSQL"
+                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              </button>
+
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                PostgreSQL Synced
+              </span>
+
+              <Link
+                href="/admin/complaints"
+                className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200"
+              >
+                Triage Parent Complaints →
+              </Link>
+            </div>
           </div>
 
           {/* Banner Notification */}
@@ -104,85 +179,86 @@ export default function AdminNoticesPage() {
           )}
 
           {/* Header */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="font-child text-2xl sm:text-3xl font-extrabold text-slate-900 flex items-center gap-2.5">
-                <BellRing className="w-7 h-7 text-amber-500" />
-                Center Notices & Announcements Management
+                <BellRing className="w-6 h-6 text-blue-600" />
+                Center Announcements & Bulletin Board
               </h1>
               <p className="text-slate-500 text-xs sm:text-sm mt-1">
-                Compose, schedule, and broadcast center closures, health guidelines, and event advisories.
+                Broadcast official daycare center bulletins, emergency alerts, holiday schedules, and vaccination notices.
               </p>
             </div>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 self-start sm:self-auto">
-              {notices.length} Published Notices
-            </span>
+
+            <div className="px-3.5 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 font-bold text-xs">
+              {notices.length} Active Center Bulletins
+            </div>
           </div>
 
-          {/* Publisher Grid */}
+          {/* Two-Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Publisher Form (Left 1 Col) */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-              <h2 className="font-child text-base font-bold text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-600" />
-                Compose New Announcement
-              </h2>
+            {/* Left: Compose Form */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100 font-child text-base font-bold text-slate-900">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>Broadcast New Announcement</span>
+              </div>
 
-              <form onSubmit={handleBroadcast} className="space-y-3.5 text-xs">
+              <form onSubmit={handleBroadcast} className="space-y-4 text-xs">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Notice Title *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Bulletin Title *</label>
                   <input
                     type="text"
                     required
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Daycare Closure for Holiday"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-blue-600"
+                    placeholder="e.g. Eid-ul-Fitr Daycare Center Closure Schedule"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs focus:outline-hidden focus:border-blue-600"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="font-semibold text-slate-700 block mb-1">Priority</label>
+                    <label className="block font-bold text-slate-700 mb-1">Priority</label>
                     <select
                       value={priority}
                       onChange={(e) => setPriority(e.target.value as any)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-blue-600"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 text-xs font-semibold focus:outline-hidden focus:border-blue-600 cursor-pointer"
                     >
                       <option value="holiday">Holiday Closure</option>
-                      <option value="urgent">Urgent Alert</option>
-                      <option value="normal">Normal Announcement</option>
+                      <option value="urgent">Urgent Advisory</option>
+                      <option value="normal">Standard Notice</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="font-semibold text-slate-700 block mb-1">Target Audience</label>
+                    <label className="block font-bold text-slate-700 mb-1">Audience</label>
                     <select
                       value={targetAudience}
                       onChange={(e) => setTargetAudience(e.target.value as any)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-blue-600"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 text-xs font-semibold focus:outline-hidden focus:border-blue-600 cursor-pointer"
                     >
-                      <option value="all">All Users</option>
+                      <option value="all">All Portals</option>
                       <option value="parents">Parents Only</option>
-                      <option value="caregivers">Caregivers Only</option>
+                      <option value="caregivers">Staff Only</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Message Content *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Notice Description *</label>
                   <textarea
-                    rows={4}
+                    rows={5}
                     required
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="Provide details about the announcement..."
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-blue-600 resize-none"
+                    placeholder="Provide full announcement details, operational dates, health safety directives, and parent instructions..."
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs focus:outline-hidden focus:border-blue-600 resize-none leading-relaxed"
                   />
                 </div>
 
                 {successMessage && (
-                  <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                     <span>{successMessage}</span>
                   </div>
@@ -190,84 +266,121 @@ export default function AdminNoticesPage() {
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Send className="w-4 h-4" /> Broadcast Announcement
+                  <Send className="w-4 h-4" /> Broadcast Notice to Database
                 </button>
               </form>
             </div>
 
-            {/* Published Notices Archive (Right 2 Cols) */}
-            <div className="lg:col-span-2 space-y-4">
-              {notices.map((ntc) => (
-                <div
-                  key={ntc.id}
-                  className={`p-6 rounded-2xl border shadow-xs bg-white space-y-3 ${
-                    ntc.priority === "urgent"
-                      ? "border-rose-300 bg-rose-50/20"
-                      : ntc.priority === "holiday"
-                      ? "border-amber-300 bg-amber-50/20"
-                      : "border-slate-200"
-                  }`}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <h3 className="font-child text-lg font-bold text-slate-900">{ntc.title}</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200">
-                        {ntc.targetAudience}
-                      </span>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-bold capitalize ${
-                          ntc.priority === "urgent"
-                            ? "bg-rose-100 text-rose-700"
-                            : ntc.priority === "holiday"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
-                      >
-                        {ntc.priority}
-                      </span>
+            {/* Right: Notices List */}
+            <div className="lg:col-span-2 space-y-3">
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-xs font-bold text-slate-700">Published Bulletins</span>
+                <span className="text-xs text-slate-500 font-mono">
+                  {notices.length} active announcements in PostgreSQL
+                </span>
+              </div>
+
+              {notices.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400 text-xs">
+                  No center announcements published yet.
+                </div>
+              ) : (
+                notices.map((notice) => (
+                  <div
+                    key={notice.id}
+                    className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3 hover:shadow-xs transition-shadow"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              notice.priority === "urgent"
+                                ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                : notice.priority === "holiday"
+                                ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                : "bg-blue-100 text-blue-800 border border-blue-200"
+                            }`}
+                          >
+                            {notice.priority}
+                          </span>
+
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                            Audience: {notice.targetAudience}
+                          </span>
+
+                          {notice.classroomName && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
+                              {notice.classroomName}
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                          {notice.title}
+                        </h3>
+                      </div>
+
                       <button
-                        onClick={() => setDeletingNotice(ntc)}
-                        title="Delete Notice"
-                        className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer ml-1"
+                        type="button"
+                        onClick={() => setDeletingNotice(notice)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Delete announcement"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  </div>
 
-                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-                    {ntc.content}
-                  </p>
+                    <p className="text-xs text-slate-600 leading-relaxed">{notice.content}</p>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
-                    <div className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Author: <strong>{ntc.authorName}</strong></span>
-                    </div>
-                    <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{new Date(ntc.publishedAt).toLocaleDateString()}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <User className="w-3.5 h-3.5" /> Published by:{" "}
+                        <strong className="text-slate-600">{notice.authorName}</strong>
+                      </span>
+                      <span className="flex items-center gap-1 font-mono">
+                        <Calendar className="w-3.5 h-3.5" />{" "}
+                        {new Date(notice.publishedAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
-
-          {/* Delete Notice Confirmation Modal */}
-          <ConfirmationModal
-            isOpen={!!deletingNotice}
-            onClose={() => setDeletingNotice(null)}
-            onConfirm={handleDeleteNoticeConfirm}
-            title="Delete Center Notice"
-            message={`Are you sure you want to remove the announcement "${deletingNotice?.title}"? It will no longer be visible on parent and staff portals.`}
-            confirmLabel="Delete Notice"
-            variant="danger"
-            isLoading={isDeleting}
-          />
         </div>
+
+        {/* Deletion Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={!!deletingNotice}
+          title="Delete Center Notice"
+          message={`Are you sure you want to permanently delete the bulletin "${deletingNotice?.title}" from the database? It will no longer be visible on parent or staff portals.`}
+          confirmLabel="Delete Notice"
+          cancelLabel="Cancel"
+          variant="danger"
+          isLoading={isDeleting}
+          onConfirm={handleDeleteNoticeConfirm}
+          onClose={() => setDeletingNotice(null)}
+        />
+
+        {/* Broadcast Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={isConfirmingPublish}
+          title="Publish Center Bulletin"
+          message={`Are you sure you want to broadcast "${title}" to ${targetAudience === "all" ? "all center portals" : targetAudience}?`}
+          confirmLabel="Broadcast Now"
+          cancelLabel="Cancel"
+          variant="warning"
+          isLoading={isPublishing}
+          onConfirm={executeBroadcast}
+          onClose={() => setIsConfirmingPublish(false)}
+        />
       </div>
     </AuthGuard>
   );

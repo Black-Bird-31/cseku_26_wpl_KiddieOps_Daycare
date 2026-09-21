@@ -17,10 +17,12 @@ import {
   ArrowLeft, 
   AlertCircle,
   KeyRound,
-  Mail
+  Mail,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { store, UserRecord } from "@/lib/mock-data";
-import { createUserAction, updateUserAction, toggleUserStatusAction, deleteUserAction } from "@/lib/actions/users";
+import { getUsersAction, createUserAction, updateUserAction, toggleUserStatusAction, deleteUserAction } from "@/lib/actions/users";
 import CloudinaryUploader from "@/components/ui/CloudinaryUploader";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import AuthGuard from "@/components/auth/AuthGuard";
@@ -36,6 +38,7 @@ export default function AdminUsersPage() {
   const [deletingUser, setDeletingUser] = useState<UserRecord | null>(null);
   const [statusTogglingUser, setStatusTogglingUser] = useState<UserRecord | null>(null);
   const [isLoadingAction, setIsLoadingAction] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -50,8 +53,13 @@ export default function AdminUsersPage() {
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [globalBanner, setGlobalBanner] = useState<string | null>(null);
 
-  const loadUsers = () => {
-    setUsers(store.getUsers());
+  const loadUsers = async () => {
+    const res = await getUsersAction("administrator");
+    if (res.success && res.users) {
+      setUsers(res.users);
+    } else {
+      setUsers(store.getUsers());
+    }
   };
 
   useEffect(() => {
@@ -67,10 +75,11 @@ export default function AdminUsersPage() {
   });
 
   const handleOpenAddModal = () => {
+    setShowPassword(false);
     setFormData({
       name: "",
       email: "",
-      password: "password123",
+      password: "",
       role: "parent",
       isActive: true,
       avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80",
@@ -81,11 +90,12 @@ export default function AdminUsersPage() {
   };
 
   const handleOpenEditModal = (user: UserRecord) => {
+    setShowPassword(false);
     setEditingUser(user);
     setFormData({
       name: user.name,
       email: user.email,
-      password: user.passwordHash,
+      password: "",
       role: user.role,
       isActive: user.isActive,
       avatarUrl: user.avatarUrl || "",
@@ -119,7 +129,18 @@ export default function AdminUsersPage() {
     setFormError(null);
     setFormSuccess(null);
 
-    const res = await updateUserAction("administrator", editingUser.id, formData);
+    const updates: any = {
+      name: formData.name,
+      email: formData.email,
+      role: formData.role,
+      isActive: formData.isActive,
+      avatarUrl: formData.avatarUrl,
+    };
+    if (formData.password && formData.password.trim().length > 0) {
+      updates.password = formData.password.trim();
+    }
+
+    const res = await updateUserAction("administrator", editingUser.id, updates);
     if (!res.success) {
       setFormError(res.error || "Failed to update user");
       return;
@@ -153,18 +174,23 @@ export default function AdminUsersPage() {
 
   const handleDeleteUserConfirm = async () => {
     if (!deletingUser) return;
+    const targetUser = deletingUser;
     setIsLoadingAction(true);
 
-    const res = await deleteUserAction("administrator", deletingUser.id);
+    // Optimistically remove from state immediately
+    setUsers((prev) => prev.filter((u) => u.id !== targetUser.id));
+    setDeletingUser(null);
+
+    const res = await deleteUserAction("administrator", targetUser.id);
     setIsLoadingAction(false);
 
     if (res.success) {
-      setGlobalBanner(`User account for "${deletingUser.name}" was permanently removed.`);
-      setDeletingUser(null);
-      loadUsers();
+      setGlobalBanner(`User account for "${targetUser.name}" was permanently removed.`);
+      await loadUsers();
       setTimeout(() => setGlobalBanner(null), 4000);
     } else {
-      alert(res.error || "Failed to delete user account.");
+      setGlobalBanner(`Error: ${res.error || "Failed to delete user account."}`);
+      await loadUsers();
     }
   };
 
@@ -337,24 +363,28 @@ export default function AdminUsersPage() {
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => setStatusTogglingUser(user)}
-                              title={user.isActive ? "Deactivate User Account" : "Activate User Account"}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                user.isActive
-                                  ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
-                                  : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                              }`}
-                            >
-                              <Power className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setDeletingUser(user)}
-                              title="Delete User Account"
-                              className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {user.email !== "admin@kiddieops.com" && (
+                              <>
+                                <button
+                                  onClick={() => setStatusTogglingUser(user)}
+                                  title={user.isActive ? "Deactivate User Account" : "Activate User Account"}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                    user.isActive
+                                      ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                      : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                                  }`}
+                                >
+                                  <Power className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => setDeletingUser(user)}
+                                  title="Forcefully Delete User Account"
+                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -368,7 +398,7 @@ export default function AdminUsersPage() {
           {/* Add / Edit User Modal */}
           {(isAddModalOpen || editingUser) && (
             <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 max-w-md w-full shadow-2xl relative animate-in fade-in">
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl relative animate-in fade-in">
                 <button
                   onClick={() => {
                     setIsAddModalOpen(false);
@@ -426,17 +456,27 @@ export default function AdminUsersPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Password *</label>
+                    <label className="text-xs font-semibold text-slate-700">
+                      {editingUser ? "New Password (leave blank to keep current)" : "Password *"}
+                    </label>
                     <div className="relative">
                       <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
-                        type="password"
-                        required
+                        type={showPassword ? "text" : "password"}
+                        required={!editingUser}
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        placeholder="••••••••"
-                        className="w-full pl-9 pr-3 py-2 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-blue-600 focus:outline-none"
+                        placeholder={editingUser ? "Leave blank to keep current" : "••••••••"}
+                        className="w-full pl-9 pr-10 py-2 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-blue-600 focus:outline-none"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                        title={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
 
@@ -511,9 +551,9 @@ export default function AdminUsersPage() {
             isOpen={!!deletingUser}
             onClose={() => setDeletingUser(null)}
             onConfirm={handleDeleteUserConfirm}
-            title="Delete User Account"
-            message={`Are you sure you want to permanently delete "${deletingUser?.name}" (${deletingUser?.email})? This action cannot be undone.`}
-            confirmLabel="Delete User"
+            title="Forcefully Delete User Account"
+            message={`Are you sure you want to forcefully and permanently delete "${deletingUser?.name}" (${deletingUser?.email})? All associated sessions, logs, and relationships will be purged.`}
+            confirmLabel="Force Delete User"
             variant="danger"
             isLoading={isLoadingAction}
           />

@@ -13,19 +13,21 @@ import {
   AlertCircle, 
   ArrowRight,
   Sparkles,
-  KeyRound
+  KeyRound,
+  Eye,
+  EyeOff
 } from "lucide-react";
-import { authenticateUser } from "@/lib/auth";
+import { loginAction } from "@/lib/actions/auth";
 import { getStoredUser, setStoredUser } from "@/lib/auth-client";
-import { initialUsers } from "@/lib/mock-data";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect");
 
-  const [email, setEmail] = useState("admin@kiddieops.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +47,7 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const authResult = authenticateUser(email, password);
+      const authResult = await loginAction(email, password);
 
       if (!authResult.success || !authResult.user) {
         setError(authResult.error || "Invalid credentials");
@@ -104,7 +106,7 @@ function LoginForm() {
               KiddieOps
             </span>
           </Link>
-          <h1 className="font-child text-2xl font-bold text-slate-900">Sign in to your account</h1>
+          <h1 className="font-child text-2xl font-bold text-slate-900">Log in to your account</h1>
           <p className="text-xs text-slate-500">
             Secure role-based portal for Daycare Administrators, Caregivers, and Parents.
           </p>
@@ -133,13 +135,22 @@ function LoginForm() {
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 shadow-2xs"
+                  className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 shadow-2xs"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                  title={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -159,49 +170,27 @@ function LoginForm() {
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>Sign In to Dashboard</span>
+                  <span>Log In to Dashboard</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Quick Demo Credentials Switcher */}
+          {/* Quick Demo Credentials Switcher - Admin Only */}
           <div className="pt-4 border-t border-slate-100 space-y-2">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block text-center">
-              Quick Demo Accounts
+              Quick Admin Access
             </span>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleFillDemo("admin@kiddieops.com", "admin123")}
-                className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-center transition-all cursor-pointer group"
-              >
-                <ShieldCheck className="w-4 h-4 text-blue-600 mx-auto mb-1 group-hover:scale-110 transition-transform" />
-                <div className="text-[11px] font-bold text-slate-800">Admin</div>
-                <div className="text-[9px] text-slate-400">admin123</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleFillDemo("nusrat@kiddieops.com", "caregiver123")}
-                className="p-2 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-center transition-all cursor-pointer group"
-              >
-                <HeartHandshake className="w-4 h-4 text-emerald-600 mx-auto mb-1 group-hover:scale-110 transition-transform" />
-                <div className="text-[11px] font-bold text-slate-800">Caregiver</div>
-                <div className="text-[9px] text-slate-400">caregiver123</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleFillDemo("farhana@gmail.com", "parent123")}
-                className="p-2 rounded-xl bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 text-center transition-all cursor-pointer group"
-              >
-                <Baby className="w-4 h-4 text-amber-600 mx-auto mb-1 group-hover:scale-110 transition-transform" />
-                <div className="text-[11px] font-bold text-slate-800">Parent</div>
-                <div className="text-[9px] text-slate-400">parent123</div>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => handleFillDemo("admin@kiddieops.com", "admin123")}
+              className="w-full p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-center transition-all cursor-pointer group flex items-center justify-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-bold text-slate-800">Primary Administrator</span>
+              <span className="text-[10px] text-slate-400 font-mono">admin@kiddieops.com</span>
+            </button>
           </div>
         </div>
 
