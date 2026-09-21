@@ -36,13 +36,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file or dataUri provided" }, { status: 400 });
     }
 
+    // Auto-detect video vs image
+    const isVideo = fileData.startsWith("data:video") || fileData.includes(".mp4") || fileData.includes(".webm");
+    const targetResourceType: "video" | "image" = isVideo ? "video" : "image";
+
     // Upload to Cloudinary
     const uploadResult = await uploadToCloudinary(fileData, {
       folder,
-      resourceType: "image",
+      resourceType: targetResourceType,
     });
 
-    // Store in media_assets registry
+    // Store in media_assets registry (Store and PostgreSQL)
     const assetId = `media-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
     const savedAsset = store.addMediaAsset({
       id: assetId,
@@ -54,6 +58,20 @@ export async function POST(req: NextRequest) {
       entityType,
       entityId,
     });
+
+    try {
+      const { db } = await import("@/lib/db");
+      const { mediaAssets } = await import("@/lib/db/schema");
+      await db.insert(mediaAssets).values({
+        publicId: uploadResult.publicId,
+        secureUrl: uploadResult.secureUrl,
+        resourceType: uploadResult.resourceType as any,
+        format: uploadResult.format,
+        entityType,
+      }).onConflictDoNothing();
+    } catch (dbErr) {
+      console.warn("DB mediaAssets sync note in upload route:", dbErr);
+    }
 
     return NextResponse.json({
       success: true,

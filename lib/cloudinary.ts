@@ -73,19 +73,22 @@ export async function uploadToCloudinary(
   const randomSuffix = Math.random().toString(36).substring(2, 8);
   const timestamp = Date.now();
   const simulatedPublicId = `${folder}/asset_${timestamp}_${randomSuffix}`;
-  
-  let simulatedUrl = `https://res.cloudinary.com/${cloudName}/image/upload/v${timestamp}/${simulatedPublicId}.jpg`;
-  if (fileDataUriOrBase64.startsWith("data:image")) {
+  const isVideo = options.resourceType === "video" || fileDataUriOrBase64.startsWith("data:video");
+  let simulatedUrl = isVideo
+    ? `https://res.cloudinary.com/${cloudName}/video/upload/v${timestamp}/${simulatedPublicId}.mp4`
+    : `https://res.cloudinary.com/${cloudName}/image/upload/v${timestamp}/${simulatedPublicId}.jpg`;
+
+  if (fileDataUriOrBase64.startsWith("data:")) {
     simulatedUrl = fileDataUriOrBase64;
   }
 
   return {
     publicId: simulatedPublicId,
     secureUrl: simulatedUrl,
-    resourceType: "image",
-    format: "jpg",
-    width: 600,
-    height: 600,
-    bytes: 45200,
+    resourceType: isVideo ? "video" : "image",
+    format: isVideo ? "mp4" : "jpg",
+    width: isVideo ? 1280 : 600,
+    height: isVideo ? 720 : 600,
+    bytes: isVideo ? 450000 : 45200,
   };
 }

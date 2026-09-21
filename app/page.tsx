@@ -16,7 +16,8 @@ import {
   Camera,
   Star,
   Users,
-  Check
+  Check,
+  LogIn
 } from "lucide-react";
 
 export default function HomePage() {
@@ -47,7 +48,8 @@ export default function HomePage() {
               href="/login"
               className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 flex items-center gap-2 kiddie-btn"
             >
-              <span>Sign In to Your Portal</span>
+              <LogIn className="w-4 h-4" />
+              <span>Log In to Your Portal</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link

@@ -3,6 +3,7 @@
  */
 
 import { store, UserRecord } from "./mock-data";
+import bcrypt from "bcryptjs";
 
 export interface SessionUser {
   id: string;
@@ -21,6 +22,37 @@ export interface AuthResult {
 }
 
 /**
+ * Hash a plain-text password using bcrypt
+ */
+export function hashPassword(plainText: string): string {
+  return bcrypt.hashSync(plainText, 10);
+}
+
+/**
+ * Verify a plain-text password attempt against either a bcrypt hash
+ * or a plain-text stored string (for backwards compatibility).
+ */
+export function verifyPassword(passwordAttempt: string, storedHashOrPlain?: string): boolean {
+  if (!storedHashOrPlain || !passwordAttempt) return false;
+
+  // Bcrypt hash prefixes
+  if (
+    storedHashOrPlain.startsWith("$2a$") ||
+    storedHashOrPlain.startsWith("$2b$") ||
+    storedHashOrPlain.startsWith("$2y$")
+  ) {
+    try {
+      return bcrypt.compareSync(passwordAttempt, storedHashOrPlain);
+    } catch {
+      return false;
+    }
+  }
+
+  // Fallback for mock-data / test credentials
+  return storedHashOrPlain === passwordAttempt || storedHashOrPlain === "secret";
+}
+
+/**
  * REQ01: Authenticate user credentials
  * REQ02: Identify role immediately and compute target dashboard
  */
@@ -34,8 +66,8 @@ export function authenticateUser(email: string, passwordAttempt: string): AuthRe
     return { success: false, error: "This user account has been deactivated. Please contact the administrator." };
   }
 
-  // Simple hash or exact match for demo / production
-  if (user.passwordHash !== passwordAttempt && user.passwordHash !== "secret") {
+  // Verify password with bcrypt or fallback
+  if (!verifyPassword(passwordAttempt, user.passwordHash)) {
     return { success: false, error: "Invalid email or password" };
   }
 

@@ -61,3 +61,32 @@ body {
 .badge-absent { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 .badge-late { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
 .badge-alert { background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; font-weight: 700; }
+
+/* Modal & Form Slider Bar / Scrollbar Styling */
+.modal-scrollbar {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+.modal-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.modal-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 9999px;
+  margin: 6px 0;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 9999px;
+  border: 2px solid #f1f5f9;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

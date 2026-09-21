@@ -351,10 +351,10 @@ class KiddieOpsStore {
   getUserByEmail(email: string) {
     return this.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
   }
-  addUser(userData: Omit<UserRecord, "id" | "createdAt" | "updatedAt">): UserRecord {
+  addUser(userData: Omit<UserRecord, "id" | "createdAt" | "updatedAt"> & { id?: string }): UserRecord {
     const newUser: UserRecord = {
       ...userData,
-      id: `user-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+      id: userData.id || `user-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -389,6 +389,25 @@ class KiddieOpsStore {
   }
   getClassroomById(id: string) {
     return this.classrooms.find((c) => c.id === id);
+  }
+  addClassroom(classroom: Omit<ClassroomRecord, "id"> & { id?: string }): ClassroomRecord {
+    const newRoom: ClassroomRecord = {
+      ...classroom,
+      id: classroom.id || `room-${Date.now().toString(36)}`,
+    };
+    this.classrooms.push(newRoom);
+    return newRoom;
+  }
+  updateClassroom(id: string, updates: Partial<ClassroomRecord>): ClassroomRecord | null {
+    const index = this.classrooms.findIndex((c) => c.id === id);
+    if (index === -1) return null;
+    this.classrooms[index] = { ...this.classrooms[index], ...updates };
+    return this.classrooms[index];
+  }
+  deleteClassroom(id: string): boolean {
+    const prevLen = this.classrooms.length;
+    this.classrooms = this.classrooms.filter((c) => c.id !== id);
+    return this.classrooms.length < prevLen;
   }
 
   // --- Caregiver Methods ---

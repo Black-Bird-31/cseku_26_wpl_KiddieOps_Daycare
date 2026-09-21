@@ -19,7 +19,8 @@ import {
   AlertCircle
 } from "lucide-react";
 import { store, ChildRecord, ClassroomRecord, UserRecord } from "@/lib/mock-data";
-import { createChildAction, updateChildAction, deleteChildAction } from "@/lib/actions/children";
+import { getAllChildrenAction, createChildAction, updateChildAction, deleteChildAction } from "@/lib/actions/children";
+import { getUsersAction } from "@/lib/actions/users";
 import CloudinaryUploader from "@/components/ui/CloudinaryUploader";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import AuthGuard from "@/components/auth/AuthGuard";
@@ -55,10 +56,24 @@ export default function AdminChildrenPage() {
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [globalBanner, setGlobalBanner] = useState<string | null>(null);
 
-  const loadData = () => {
-    setChildren(store.getChildren());
+  const loadData = async () => {
+    // 1. Fetch children from PostgreSQL
+    const childRes = await getAllChildrenAction("administrator");
+    if (childRes.success && childRes.children) {
+      setChildren(childRes.children);
+    } else {
+      setChildren(store.getChildren());
+    }
+
     setClassrooms(store.getClassrooms());
-    setParents(store.getUsers().filter((u) => u.role === "parent"));
+
+    // 2. Fetch parents from PostgreSQL
+    const userRes = await getUsersAction("administrator");
+    if (userRes.success && userRes.users) {
+      setParents(userRes.users.filter((u) => u.role === "parent"));
+    } else {
+      setParents(store.getUsers().filter((u) => u.role === "parent"));
+    }
   };
 
   useEffect(() => {
@@ -152,13 +167,16 @@ export default function AdminChildrenPage() {
     if (!deletingChild) return;
     setIsDeleting(true);
 
-    const result = await deleteChildAction("administrator", deletingChild.id);
+    const targetId = deletingChild.id;
+    const targetName = deletingChild.name;
+    const result = await deleteChildAction("administrator", targetId);
     setIsDeleting(false);
 
     if (result.success) {
-      setGlobalBanner(`Child profile for "${deletingChild.name}" has been permanently removed.`);
+      setChildren((prev) => prev.filter((c) => c.id !== targetId));
+      setGlobalBanner(`Child profile for "${targetName}" has been permanently removed.`);
       setDeletingChild(null);
-      loadData();
+      await loadData();
       setTimeout(() => setGlobalBanner(null), 4000);
     } else {
       alert(result.error || "Failed to delete child profile.");
