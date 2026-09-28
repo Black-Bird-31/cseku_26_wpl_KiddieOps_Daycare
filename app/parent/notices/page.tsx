@@ -10,18 +10,62 @@ import {
   User, 
   ShieldAlert,
   Search,
-  Filter
+  Filter,
+  RefreshCw,
+  Users
 } from "lucide-react";
-import { store, NoticeRecord } from "@/lib/mock-data";
+import { store } from "@/lib/mock-data";
+import { getCenterNoticesAction, AdminNoticeItem } from "@/lib/actions/admin";
 import AuthGuard from "@/components/auth/AuthGuard";
 
 export default function ParentNoticesPage() {
-  const [notices, setNotices] = useState<NoticeRecord[]>([]);
+  const [notices, setNotices] = useState<AdminNoticeItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filterPriority, setFilterPriority] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const loadNotices = async () => {
+    setLoading(true);
+    try {
+      const res = await getCenterNoticesAction();
+      if (res.success && res.notices) {
+        // Filter out notices that are strictly intended for caregivers only
+        const forParents = res.notices.filter((n) => n.targetAudience !== "caregivers");
+        setNotices(forParents);
+      } else {
+        const fallback = store.getNotices().filter((n) => n.targetAudience !== "caregivers").map((n) => ({
+          id: n.id,
+          title: n.title,
+          content: n.content,
+          priority: n.priority,
+          targetAudience: n.targetAudience,
+          authorName: n.authorName,
+          classroomId: null,
+          classroomName: undefined,
+          publishedAt: n.publishedAt,
+        }));
+        setNotices(fallback);
+      }
+    } catch {
+      const fallback = store.getNotices().filter((n) => n.targetAudience !== "caregivers").map((n) => ({
+        id: n.id,
+        title: n.title,
+        content: n.content,
+        priority: n.priority,
+        targetAudience: n.targetAudience,
+        authorName: n.authorName,
+        classroomId: null,
+        classroomName: undefined,
+        publishedAt: n.publishedAt,
+      }));
+      setNotices(fallback);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setNotices(store.getNotices());
+    loadNotices();
   }, []);
 
   const filteredNotices = notices.filter((ntc) => {
@@ -66,9 +110,19 @@ export default function ParentNoticesPage() {
                 Official holiday schedules, health alerts, menu updates, and notices from daycare administration.
               </p>
             </div>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 self-start sm:self-auto">
-              {notices.length} Total Notices
-            </span>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                onClick={loadNotices}
+                disabled={loading}
+                title="Refresh notices from center"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              </button>
+              <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                {notices.length} Active Notices
+              </span>
+            </div>
           </div>
 
           {/* Search & Priority Filter Bar */}
@@ -111,9 +165,15 @@ export default function ParentNoticesPage() {
                 No notices found matching the selected filter.
               </div>
             ) : (
-              filteredNotices.map((ntc) => (
-                <div
-                  key={ntc.id}
+              filteredNotices.map((ntc) => {
+                const isCaregiverNotice =
+                  ntc.authorRole === "caregiver" ||
+                  ntc.authorName?.toLowerCase().includes("caregiver") ||
+                  ntc.authorName?.toLowerCase().includes("teacher") ||
+                  ntc.authorName?.toLowerCase().includes("nusrat");
+                return (
+                  <div
+                    key={ntc.id}
                   className={`p-6 rounded-2xl border shadow-xs space-y-3 bg-white ${
                     ntc.priority === "urgent"
                       ? "border-rose-300 bg-rose-50/20"
@@ -123,9 +183,16 @@ export default function ParentNoticesPage() {
                   }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <h2 className="font-child text-lg font-bold text-slate-900">
-                      {ntc.title}
-                    </h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-child text-lg font-bold text-slate-900">
+                        {ntc.title}
+                      </h2>
+                      {isCaregiverNotice && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          Teacher / Caregiver
+                        </span>
+                      )}
+                    </div>
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-xs font-bold capitalize self-start sm:self-auto ${
                         ntc.priority === "urgent"
@@ -145,8 +212,11 @@ export default function ParentNoticesPage() {
 
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
                     <div className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Published by <strong>{ntc.authorName}</strong></span>
+                      <User className={`w-3.5 h-3.5 ${isCaregiverNotice ? "text-emerald-600" : "text-slate-400"}`} />
+                      <span>
+                        {isCaregiverNotice ? "Classroom Teacher: " : "Published by "}
+                        <strong>{ntc.authorName}</strong>
+                      </span>
                     </div>
                     <div className="flex items-center gap-1.5 font-mono text-[11px]">
                       <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -154,7 +224,8 @@ export default function ParentNoticesPage() {
                     </div>
                   </div>
                 </div>
-              ))
+              );
+            })
             )}
           </div>
         </div>

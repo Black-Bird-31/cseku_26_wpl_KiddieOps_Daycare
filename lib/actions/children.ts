@@ -8,7 +8,7 @@
 import { store, ChildRecord } from "../mock-data";
 import { canManageChildren, canGuardianViewChild } from "../auth";
 import { db } from "../db";
-import { children, classrooms, mediaAssets, childGuardians, users } from "../db/schema";
+import { children, classrooms, mediaAssets, childGuardians, users, medicalRecords } from "../db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { safeRevalidate } from "./safe-revalidate";
 
@@ -271,6 +271,28 @@ export async function createChildAction(
     if (newDbChild) {
       dbChildId = newDbChild.id;
 
+      // Also upsert initial medical records if allergy specified
+      if (data.allergyFlag || data.allergyDetails) {
+        try {
+          await db
+            .insert(medicalRecords)
+            .values({
+              childId: newDbChild.id,
+              allergies: data.allergyDetails?.trim() || "Known allergy registered by Admin",
+              hasSevereAllergy: !!data.allergyFlag,
+              specialCareInstructions: "Follow classroom emergency care protocol",
+            })
+            .onConflictDoUpdate({
+              target: [medicalRecords.childId],
+              set: {
+                allergies: data.allergyDetails?.trim() || "Known allergy registered by Admin",
+                hasSevereAllergy: !!data.allergyFlag,
+                updatedAt: new Date(),
+              },
+            });
+        } catch {}
+      }
+
       // Link guardians if valid UUIDs exist
       if (data.guardianIds && data.guardianIds.length > 0) {
         for (const gId of data.guardianIds) {
@@ -308,6 +330,7 @@ export async function createChildAction(
   safeRevalidate("/admin/children");
   safeRevalidate("/admin");
   safeRevalidate("/caregiver");
+  safeRevalidate("/parent");
   return { success: true, child: newChild };
 }
 
@@ -337,6 +360,26 @@ export async function updateChildAction(
       if (updates.emergencyContactPhone) patch.emergencyContactPhone = updates.emergencyContactPhone.trim();
 
       await db.update(children).set(patch).where(eq(children.id, childId));
+
+      if (updates.allergyFlag !== undefined || updates.allergyDetails !== undefined) {
+        try {
+          await db
+            .insert(medicalRecords)
+            .values({
+              childId: childId,
+              allergies: updates.allergyDetails?.trim() || (updates.allergyFlag ? "Known allergy" : null),
+              hasSevereAllergy: !!updates.allergyFlag,
+            })
+            .onConflictDoUpdate({
+              target: [medicalRecords.childId],
+              set: {
+                allergies: updates.allergyDetails?.trim() || (updates.allergyFlag ? "Known allergy" : null),
+                hasSevereAllergy: !!updates.allergyFlag,
+                updatedAt: new Date(),
+              },
+            });
+        } catch {}
+      }
     } catch (err) {
       console.warn("DB update note in updateChildAction:", err);
     }

@@ -85,6 +85,7 @@ export interface NoticeRecord {
   priority: "normal" | "urgent" | "holiday";
   targetAudience: "all" | "caregivers" | "parents";
   authorName: string;
+  authorRole?: "administrator" | "caregiver" | "parent" | string;
   publishedAt: string;
 }
 
@@ -291,6 +292,7 @@ export const initialNotices: NoticeRecord[] = [
     priority: "holiday",
     targetAudience: "all",
     authorName: "Tanzina Rahman (Principal)",
+    authorRole: "administrator",
     publishedAt: new Date().toISOString(),
   },
   {
@@ -300,7 +302,18 @@ export const initialNotices: NoticeRecord[] = [
     priority: "normal",
     targetAudience: "parents",
     authorName: "Administration",
+    authorRole: "administrator",
     publishedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: "notice-03",
+    title: "Classroom Sensory Water Play & Extra Clothes Request",
+    content: "Dear Parents, tomorrow we are having a sensory water & sponge play activity. Please provide an extra pair of dry clothes and a small towel in your child's cubby.",
+    priority: "normal",
+    targetAudience: "parents",
+    authorName: "Nusrat Jahan (Classroom Caregiver)",
+    authorRole: "caregiver",
+    publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   },
 ];
 

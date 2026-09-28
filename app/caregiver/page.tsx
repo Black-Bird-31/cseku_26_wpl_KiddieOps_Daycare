@@ -35,12 +35,15 @@ import {
   AlertTriangle,
   ArrowRight,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  BellRing,
+  Filter
 } from "lucide-react";
 import AuthGuard from "@/components/auth/AuthGuard";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import ClockTimePicker from "@/components/ui/ClockTimePicker";
 import { getStoredUser } from "@/lib/auth-client";
+import { getCenterNoticesAction, createNoticeAction, AdminNoticeItem } from "@/lib/actions/admin";
 import { 
   getCaregiverDashboardDataAction, 
   logActivityAction,
@@ -134,9 +137,22 @@ export default function CaregiverDashboardPage() {
   const [selectedClassroomId, setSelectedClassroomId] = useState<string>("");
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
-  // Tab switcher: routines vs children CRUD
-  const [activeTab, setActiveTab] = useState<"routines" | "children">("routines");
+  // Tab switcher: routines vs children CRUD vs notices
+  const [activeTab, setActiveTab] = useState<"routines" | "children" | "notices">("routines");
   const [childSearchQuery, setChildSearchQuery] = useState("");
+
+  // Center Notices from PostgreSQL (live broadcast from admin)
+  const [centerNotices, setCenterNotices] = useState<AdminNoticeItem[]>([]);
+  const [noticesLoading, setNoticesLoading] = useState(false);
+  const [noticePriorityFilter, setNoticePriorityFilter] = useState<string>("all");
+  const [noticeSearchQuery, setNoticeSearchQuery] = useState("");
+  // Caregiver Broadcast Notice to Parents State
+  const [isBroadcastNoticeModalOpen, setIsBroadcastNoticeModalOpen] = useState(false);
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastDescription, setBroadcastDescription] = useState("");
+  const [broadcastPriority, setBroadcastPriority] = useState<"normal" | "urgent" | "holiday">("normal");
+  const [broadcastTargetAudience, setBroadcastTargetAudience] = useState<"parents" | "all">("parents");
+  const [isSubmittingBroadcast, setIsSubmittingBroadcast] = useState(false);
 
   // Modals: meal, nap, diaper, word, mood, emergency, photo/video, activity
   const [activeModal, setActiveModal] = useState<
@@ -310,6 +326,21 @@ export default function CaregiverDashboardPage() {
     } else {
       setFeedbackMessage({ type: "error", text: res.error || "Failed to load database records." });
     }
+
+    // Load active center notices for caregiver staff
+    try {
+      setNoticesLoading(true);
+      const ntcRes = await getCenterNoticesAction();
+      if (ntcRes.success && ntcRes.notices) {
+        const forCaregivers = ntcRes.notices.filter((n) => n.targetAudience !== "parents");
+        setCenterNotices(forCaregivers);
+      }
+    } catch (e) {
+      console.error("Error loading notices for caregiver:", e);
+    } finally {
+      setNoticesLoading(false);
+    }
+
     setLoading(false);
   }, [selectedClassroomId]);
 
@@ -352,6 +383,46 @@ export default function CaregiverDashboardPage() {
       loadDashboard();
     } else {
       setFeedbackMessage({ type: "error", text: res.error || "Failed to record activity." });
+    }
+  };
+
+  // Broadcast Notice / Bulletin directly to Parents
+  const handleBroadcastNotice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastDescription.trim()) {
+      setFeedbackMessage({ type: "error", text: "Please provide both notice title and description." });
+      return;
+    }
+    setIsSubmittingBroadcast(true);
+    try {
+      const currentUser = getStoredUser();
+      const res = await createNoticeAction({
+        title: broadcastTitle.trim(),
+        description: broadcastDescription.trim(),
+        priority: broadcastPriority,
+        targetAudience: broadcastTargetAudience,
+        authorUserId: currentUser?.id,
+        classroomId: selectedClassroomId !== "all" && selectedClassroomId ? selectedClassroomId : undefined,
+      });
+
+      if (res.success) {
+        setFeedbackMessage({
+          type: "success",
+          text: "Notice broadcasted successfully to Parents and Classroom Dashboard!",
+        });
+        setIsBroadcastNoticeModalOpen(false);
+        setBroadcastTitle("");
+        setBroadcastDescription("");
+        setBroadcastPriority("normal");
+        setTimeout(() => setFeedbackMessage(null), 4000);
+        loadDashboard();
+      } else {
+        setFeedbackMessage({ type: "error", text: res.error || "Failed to broadcast notice." });
+      }
+    } catch (err: any) {
+      setFeedbackMessage({ type: "error", text: err.message || "Failed to broadcast notice." });
+    } finally {
+      setIsSubmittingBroadcast(false);
     }
   };
 
@@ -923,6 +994,35 @@ export default function CaregiverDashboardPage() {
               </Link>
 
               <button
+                onClick={() => setActiveTab("notices")}
+                className={`px-3.5 py-2 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer border ${
+                  activeTab === "notices"
+                    ? "bg-amber-500 text-slate-950 border-amber-500"
+                    : "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200"
+                }`}
+              >
+                <BellRing className="w-3.5 h-3.5 text-amber-600" />
+                <span>Center Notices</span>
+                {centerNotices.length > 0 && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      activeTab === "notices" ? "bg-slate-950 text-white" : "bg-amber-600 text-white"
+                    }`}
+                  >
+                    {centerNotices.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setIsBroadcastNoticeModalOpen(true)}
+                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <BellRing className="w-3.5 h-3.5 text-slate-950" />
+                <span>+ Broadcast to Parents</span>
+              </button>
+
+              <button
                 onClick={() => {
                   setTargetChildId(selectedChild?.id || data?.children[0]?.id || "");
                   setActiveModal("photo");
@@ -1002,17 +1102,39 @@ export default function CaregiverDashboardPage() {
                 <Baby className="w-4 h-4" />
                 <span>Children Roster & Management ({data?.children.length || 0})</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab("notices")}
+                className={`px-4 py-2.5 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === "notices"
+                    ? "bg-amber-500 text-slate-950 shadow-xs"
+                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                }`}
+              >
+                <BellRing className="w-4 h-4 text-amber-600" />
+                <span>Center Notices & Bulletins ({centerNotices.length})</span>
+              </button>
             </div>
 
-            {activeTab === "children" && (
+            <div className="flex items-center gap-2 self-start sm:self-auto">
               <button
-                onClick={handleOpenAddChild}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
+                onClick={() => setIsBroadcastNoticeModalOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
               >
-                <PlusCircle className="w-4 h-4" />
-                <span>Add / Enroll New Child</span>
+                <BellRing className="w-4 h-4 text-slate-950" />
+                <span>+ Broadcast to Parents</span>
               </button>
-            )}
+
+              {activeTab === "children" && (
+                <button
+                  onClick={handleOpenAddChild}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Add / Enroll New Child</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Main Content Area */}
@@ -1021,6 +1143,94 @@ export default function CaregiverDashboardPage() {
 
               {/* Left 2 Columns: Attendance Overview Widget & Dynamic Activity Timeline */}
               <div className="lg:col-span-2 space-y-6">
+
+                {/* Center Notices & Administration Directives Section */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center">
+                        <BellRing className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <h2 className="font-child text-lg font-bold text-slate-900 flex items-center gap-2">
+                          <span>Center Notices & Staff Directives</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                            {centerNotices.length} Active
+                          </span>
+                        </h2>
+                        <p className="text-xs text-slate-500">
+                          Administrative broadcasts, severe weather protocols, holiday closures, and center bulletins.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setActiveTab("notices")}
+                        className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs flex items-center gap-1 transition-colors border border-amber-200 cursor-pointer"
+                      >
+                        <BellRing className="w-3.5 h-3.5 text-amber-600" />
+                        <span>View All Directives →</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {noticesLoading ? (
+                    <div className="p-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />
+                      <span>Checking center bulletins...</span>
+                    </div>
+                  ) : centerNotices.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-500 bg-slate-50 rounded-xl">
+                      No active bulletins for caregiver staff. Standard center routine in effect.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {centerNotices.slice(0, 2).map((notice) => (
+                        <div
+                          key={notice.id}
+                          className={`p-4 rounded-xl border transition-all space-y-2 ${
+                            notice.priority === "urgent"
+                              ? "bg-rose-50/60 border-rose-200"
+                              : notice.priority === "holiday"
+                              ? "bg-amber-50/60 border-amber-200"
+                              : "bg-slate-50/70 border-slate-200"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-0.5">
+                              <h3 className="font-child text-sm font-bold text-slate-900">
+                                {notice.title}
+                              </h3>
+                              <div className="text-[11px] text-slate-500 font-medium">
+                                Published by <strong>{notice.authorName}</strong> ·{" "}
+                                {new Date(notice.publishedAt).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </div>
+                            </div>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${
+                                notice.priority === "urgent"
+                                  ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                  : notice.priority === "holiday"
+                                  ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                  : "bg-blue-100 text-blue-700 border border-blue-200"
+                              }`}
+                            >
+                              {notice.priority} Alert
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
+                            {notice.content}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* 1. Daily Attendance Overview Widget (Linked to dedicated Attendance Page) */}
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
@@ -1386,6 +1596,157 @@ export default function CaregiverDashboardPage() {
                       <PlusCircle className="w-3.5 h-3.5 text-white" />
                       <span>+ Enroll Child</span>
                     </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : activeTab === "notices" ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <h2 className="font-child text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+                    <BellRing className="w-6 h-6 text-amber-500" />
+                    <span>Caregiver Staff Bulletins & Center Notices</span>
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                    Directives, weather contingency plans, holiday schedules, and health bulletins from Daycare Administration.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsBroadcastNoticeModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <BellRing className="w-3.5 h-3.5 text-slate-950" />
+                    <span>+ Broadcast Notice to Parents</span>
+                  </button>
+                  <button
+                    onClick={() => loadDashboard()}
+                    disabled={noticesLoading}
+                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${noticesLoading ? "animate-spin" : ""}`} />
+                    <span>Refresh Board</span>
+                  </button>
+                  <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                    {centerNotices.length} Active Directives
+                  </span>
+                </div>
+              </div>
+
+              {/* Search & Filter */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={noticeSearchQuery}
+                    onChange={(e) => setNoticeSearchQuery(e.target.value)}
+                    placeholder="Search directives & bulletins..."
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
+                  <span className="text-xs text-slate-500 font-semibold mr-1">Priority:</span>
+                  {["all", "urgent", "holiday", "normal"].map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setNoticePriorityFilter(p)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
+                        noticePriorityFilter === p
+                          ? "bg-slate-900 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Directives List */}
+              <div className="space-y-4">
+                {centerNotices
+                  .filter((n) => {
+                    const matchesP = noticePriorityFilter === "all" || n.priority === noticePriorityFilter;
+                    const matchesQ =
+                      n.title.toLowerCase().includes(noticeSearchQuery.toLowerCase()) ||
+                      n.content.toLowerCase().includes(noticeSearchQuery.toLowerCase());
+                    return matchesP && matchesQ;
+                  })
+                  .map((notice) => (
+                    <div
+                      key={notice.id}
+                      className={`p-6 rounded-2xl border shadow-xs space-y-3 bg-white transition-all ${
+                        notice.priority === "urgent"
+                          ? "border-rose-300 ring-1 ring-rose-300/40 bg-rose-50/20"
+                          : notice.priority === "holiday"
+                          ? "border-amber-300 ring-1 ring-amber-300/40 bg-amber-50/20"
+                          : "border-slate-200"
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                              notice.priority === "urgent"
+                                ? "bg-rose-500 animate-ping"
+                                : notice.priority === "holiday"
+                                ? "bg-amber-500"
+                                : "bg-emerald-500"
+                            }`}
+                          />
+                          <h3 className="font-child text-lg font-bold text-slate-900">
+                            {notice.title}
+                          </h3>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                          {notice.targetAudience && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 capitalize">
+                              Audience: {notice.targetAudience}
+                            </span>
+                          )}
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold capitalize ${
+                              notice.priority === "urgent"
+                                ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                : notice.priority === "holiday"
+                                ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                : "bg-blue-100 text-blue-700 border border-blue-200"
+                            }`}
+                          >
+                            {notice.priority} Alert
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                        {notice.content}
+                      </p>
+
+                      <div className="flex flex-wrap items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span>Issued by <strong>{notice.authorName}</strong></span>
+                          {notice.classroomName && (
+                            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold">
+                              {notice.classroomName}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-400">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>{new Date(notice.publishedAt).toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" })}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                {centerNotices.length === 0 && (
+                  <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm">
+                    No administrative notices published for caregivers.
                   </div>
                 )}
               </div>
@@ -3058,6 +3419,149 @@ export default function CaregiverDashboardPage() {
                   >
                     <Check className="w-4 h-4" />
                     {isSubmittingChild ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* MODAL 12: Caregiver Broadcast Notice to Parents Modal */}
+        {/* ============================================================ */}
+        {isBroadcastNoticeModalOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 shadow-xl space-y-4 animate-in fade-in max-h-[90vh] modal-scrollbar">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2 font-child text-lg font-bold text-slate-900">
+                  <BellRing className="w-5 h-5 text-amber-500" />
+                  <span>Broadcast Notice to Classroom Parents</span>
+                </div>
+                <button
+                  onClick={() => setIsBroadcastNoticeModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleBroadcastNotice} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Notice Title <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={broadcastTitle}
+                    onChange={(e) => setBroadcastTitle(e.target.value)}
+                    placeholder="e.g. Extra Clothes Needed for Sensory Water Play"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-amber-600"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Priority</label>
+                    <select
+                      value={broadcastPriority}
+                      onChange={(e) => setBroadcastPriority(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 bg-white"
+                    >
+                      <option value="normal">Normal Bulletin</option>
+                      <option value="urgent">Urgent Alert</option>
+                      <option value="holiday">Holiday / Event</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Target Audience</label>
+                    <select
+                      value={broadcastTargetAudience}
+                      onChange={(e) => setBroadcastTargetAudience(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 bg-white"
+                    >
+                      <option value="parents">Classroom Parents</option>
+                      <option value="all">All Daycare Members</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Quick Preset Topics (Click to Fill)
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      {
+                        title: "Sensory Play & Spare Clothes Needed",
+                        desc: "Dear parents, tomorrow we have tactile water and sponge sensory play. Please send an extra dry outfit and small towel in your child's backpack.",
+                      },
+                      {
+                        title: "Diaper & Wipes Replenishment Request",
+                        desc: "Gentle reminder to check your child's cubby supplies. Please send fresh diaper pull-ups and hypoallergenic baby wipes when dropping off.",
+                      },
+                      {
+                        title: "Warm Sweater Advisory for Outdoor Recess",
+                        desc: "Due to cooler breezes during courtyard recess this week, please ensure your little one brings a cozy jacket or sweater.",
+                      },
+                      {
+                        title: "Classroom Art Craft Showcased in Gallery",
+                        desc: "The children had a wonderful morning finger-painting today! Check the Parent Gallery tab to view pictures of your little artist at work.",
+                      },
+                    ].map((preset) => (
+                      <button
+                        key={preset.title}
+                        type="button"
+                        onClick={() => {
+                          setBroadcastTitle(preset.title);
+                          setBroadcastDescription(preset.desc);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 text-[11px] font-medium transition-colors cursor-pointer text-left"
+                      >
+                        ⚡ {preset.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Notice Description / Message <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={broadcastDescription}
+                    onChange={(e) => setBroadcastDescription(e.target.value)}
+                    placeholder="Write detailed instructions, notes or updates for parents..."
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:outline-hidden focus:border-amber-600"
+                  />
+                </div>
+
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span>
+                    This notice will immediately appear in the <strong>Parent Portal</strong> and <strong>Notices Board</strong> marked with your Caregiver Teacher credentials.
+                  </span>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsBroadcastNoticeModalOpen(false)}
+                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingBroadcast}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    {isSubmittingBroadcast ? "Publishing..." : "Broadcast Notice to Parents"}
                   </button>
                 </div>
               </form>
