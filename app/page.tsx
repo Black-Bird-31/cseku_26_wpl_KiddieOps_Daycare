@@ -19,19 +19,27 @@ import {
   Check,
   LogIn
 } from "lucide-react";
+import HomeHeroCarousel from "@/components/ui/HomeHeroCarousel";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-12 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* ============================================================ */}
+      {/* SECTION 1: Dynamic High-Opacity Hero Carousel (First Section) */}
+      {/* ============================================================ */}
+      <HomeHeroCarousel />
+
+      {/* ============================================================ */}
+      {/* SECTION 2: Core Platform Mission & Quick Portal Access */}
+      {/* ============================================================ */}
+      <section className="relative overflow-hidden pt-8 pb-14 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="text-center max-w-3xl mx-auto space-y-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5 text-blue-600" />
             Smart Daycare Operations & Guardian Platform
           </div>
 
-          <h1 className="font-child text-4xl sm:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight">
+          <h1 className="font-child text-3xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight">
             Nurturing Little Minds with <br />
             <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500 bg-clip-text text-transparent">
               Care, Safety & AI Guardian

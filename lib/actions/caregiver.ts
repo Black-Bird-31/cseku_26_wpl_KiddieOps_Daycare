@@ -15,7 +15,7 @@ import {
   medicalRecords,
   notices
 } from "../db/schema";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, or, desc, sql, inArray } from "drizzle-orm";
 import { store } from "../mock-data";
 import { safeRevalidate } from "./safe-revalidate";
 
@@ -31,6 +31,9 @@ export interface ChildMediaPostItem {
   mediaType: "photo" | "video";
   caption: string | null;
   capturedAt: string;
+  authorUserId?: string | null;
+  authorName?: string | null;
+  authorRole?: string | null;
 }
 
 export interface CaregiverChildItem {
@@ -401,6 +404,10 @@ export async function saveAttendanceBatchAction(
     }
 
     safeRevalidate("/caregiver");
+    safeRevalidate("/caregiver/attendance");
+    safeRevalidate("/parent");
+    safeRevalidate("/admin/attendance");
+    safeRevalidate("/admin");
     return { success: true, count: updatedCount };
   } catch (error: any) {
     console.error("Error in saveAttendanceBatchAction:", error);
@@ -466,13 +473,35 @@ export async function createChildMediaPostAction(data: {
 }): Promise<{ success: boolean; error?: string; postId?: string }> {
   try {
     let authorId = data.caregiverUserId;
-    if (!authorId) {
+    if (!authorId || !isUUID(authorId)) {
       const u = await db.select().from(users).where(eq(users.role, "caregiver")).limit(1);
       authorId = u[0]?.id;
     }
 
     if (!authorId) {
       return { success: false, error: "Caregiver ID required." };
+    }
+
+    // Resolve target child ID (ensure valid UUID format)
+    let targetChildId: string | null = null;
+    if (data.childId && isUUID(data.childId)) {
+      targetChildId = data.childId;
+    } else {
+      const allKids = await db.select().from(children).limit(1);
+      targetChildId = allKids[0]?.id || null;
+    }
+
+    // Resolve classroom ID (ensure valid UUID format)
+    let targetClassroomId: string | null = null;
+    if (data.classroomId && isUUID(data.classroomId)) {
+      targetClassroomId = data.classroomId;
+    } else if (targetChildId) {
+      const k = await db
+        .select({ classroomId: children.classroomId })
+        .from(children)
+        .where(eq(children.id, targetChildId))
+        .limit(1);
+      targetClassroomId = k[0]?.classroomId || null;
     }
 
     const isVideo =
@@ -483,9 +512,47 @@ export async function createChildMediaPostAction(data: {
     const mType: "photo" | "video" = isVideo ? "video" : "photo";
     const resType: "video" | "image" = isVideo ? "video" : "image";
 
-    let assetId = data.mediaAssetId;
-    if (!assetId) {
-      const pubId = data.publicId || `kiddieops/moment_${Date.now()}`;
+    let validAssetId: string | null = null;
+
+    // 1. If mediaAssetId is passed and is a valid UUID, verify it exists in media_assets
+    if (data.mediaAssetId && isUUID(data.mediaAssetId)) {
+      const existing = await db
+        .select({ id: mediaAssets.id })
+        .from(mediaAssets)
+        .where(eq(mediaAssets.id, data.mediaAssetId))
+        .limit(1);
+      if (existing.length > 0) {
+        validAssetId = existing[0].id;
+      }
+    }
+
+    // 2. If not found by UUID, try matching by publicId
+    if (!validAssetId && data.publicId) {
+      const byPub = await db
+        .select({ id: mediaAssets.id })
+        .from(mediaAssets)
+        .where(eq(mediaAssets.publicId, data.publicId))
+        .limit(1);
+      if (byPub.length > 0) {
+        validAssetId = byPub[0].id;
+      }
+    }
+
+    // 3. If not found yet, try matching by secureUrl
+    if (!validAssetId && data.mediaUrl) {
+      const byUrl = await db
+        .select({ id: mediaAssets.id })
+        .from(mediaAssets)
+        .where(eq(mediaAssets.secureUrl, data.mediaUrl))
+        .limit(1);
+      if (byUrl.length > 0) {
+        validAssetId = byUrl[0].id;
+      }
+    }
+
+    // 4. If still not in PostgreSQL, insert a new record in media_assets
+    if (!validAssetId) {
+      const pubId = data.publicId || `kiddieops/moment_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       const [newAsset] = await db
         .insert(mediaAssets)
         .values({
@@ -495,19 +562,23 @@ export async function createChildMediaPostAction(data: {
           format: isVideo ? "mp4" : "jpg",
           uploadedByUserId: authorId,
           entityType: "child_media",
-          entityId: data.childId,
+          entityId: targetChildId,
         })
         .returning();
-      assetId = newAsset?.id;
+      validAssetId = newAsset?.id;
+    }
+
+    if (!validAssetId) {
+      return { success: false, error: "Failed to save media asset to database." };
     }
 
     const [newPost] = await db
       .insert(childMediaPosts)
       .values({
-        childId: data.childId,
-        classroomId: data.classroomId || null,
+        childId: targetChildId,
+        classroomId: targetClassroomId,
         caregiverUserId: authorId,
-        mediaAssetId: assetId,
+        mediaAssetId: validAssetId,
         mediaType: mType,
         caption: data.caption || (isVideo ? "Classroom video moment" : "Classroom activity moment"),
         capturedAt: new Date(),
@@ -786,19 +857,31 @@ export async function getChildLiveFeedAction(childId: string): Promise<{
       };
     });
 
-    // 4. Fetch media posts (photos and videos) for this child
+    // 4. Fetch media posts (photos and videos) for this child & classroom
     const media = await db
       .select({
         post: childMediaPosts,
         asset: mediaAssets,
+        author: users,
       })
       .from(childMediaPosts)
       .innerJoin(mediaAssets, eq(childMediaPosts.mediaAssetId, mediaAssets.id))
-      .where(eq(childMediaPosts.childId, childId))
+      .leftJoin(users, eq(childMediaPosts.caregiverUserId, users.id))
+      .where(
+        or(
+          eq(childMediaPosts.childId, childId),
+          and(
+            sql`${childMediaPosts.childId} IS NULL`,
+            currentChild.child.classroomId
+              ? eq(childMediaPosts.classroomId, currentChild.child.classroomId)
+              : sql`false`
+          )
+        )
+      )
       .orderBy(desc(childMediaPosts.capturedAt))
       .limit(30);
 
-    const mappedMedia: ChildMediaPostItem[] = media.map(({ post, asset }) => ({
+    const mappedMedia: ChildMediaPostItem[] = media.map(({ post, asset, author }) => ({
       id: post.id,
       childId: post.childId || childId,
       childName: currentChild.child.name,
@@ -807,6 +890,9 @@ export async function getChildLiveFeedAction(childId: string): Promise<{
       mediaType: post.mediaType,
       caption: post.caption,
       capturedAt: post.capturedAt ? new Date(post.capturedAt).toISOString() : new Date().toISOString(),
+      authorUserId: post.caregiverUserId,
+      authorName: author?.name || "Teacher / Staff",
+      authorRole: author?.role || "caregiver",
     }));
 
     return {

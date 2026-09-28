@@ -16,7 +16,8 @@ import {
   ShieldAlert,
   School,
   Users,
-  Clock
+  Clock,
+  BellRing
 } from "lucide-react";
 import { getStoredUser, clearStoredUser } from "@/lib/auth-client";
 import { SessionUser } from "@/lib/auth";
@@ -152,6 +153,15 @@ export default function Navbar() {
                 >
                   Complaints
                 </Link>
+                <Link
+                  href="/admin/notices"
+                  className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 ${
+                    pathname === "/admin/notices" ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <BellRing className="w-3.5 h-3.5 text-blue-600" />
+                  Notices
+                </Link>
               </div>
             ) : currentUser.role === "caregiver" ? (
               <div className="flex items-center gap-1.5 text-xs font-bold">
@@ -171,17 +181,48 @@ export default function Navbar() {
                   }`}
                 >
                   <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                  Attendance Sheet
+                  Attendance
+                </Link>
+                <Link
+                  href="/caregiver/notices"
+                  className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                    pathname === "/caregiver/notices" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <BellRing className="w-3.5 h-3.5 text-amber-500" />
+                  Notices
                 </Link>
               </div>
             ) : (
-              <Link
-                href={getDashboardHref(currentUser.role)}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 flex items-center gap-2 transition-all border border-slate-200"
-              >
-                <LayoutDashboard className="w-3.5 h-3.5 text-blue-600" />
-                {getDashboardLabel(currentUser.role)}
-              </Link>
+              <div className="flex items-center gap-1.5 text-xs font-bold">
+                <Link
+                  href="/parent"
+                  className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                    pathname === "/parent" ? "bg-amber-50 text-amber-800 border border-amber-200" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <Baby className="w-3.5 h-3.5 text-amber-600" />
+                  Child Dashboard
+                </Link>
+                <Link
+                  href="/parent/notices"
+                  className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                    pathname === "/parent/notices" ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <BellRing className="w-3.5 h-3.5 text-blue-600" />
+                  Center Notices
+                </Link>
+                <Link
+                  href="/parent/complaints"
+                  className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                    pathname === "/parent/complaints" ? "bg-rose-50 text-rose-700 border border-rose-200" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                  Incidents
+                </Link>
+              </div>
             )
           ) : (
             <div className="flex items-center gap-5 text-xs font-semibold text-slate-500">

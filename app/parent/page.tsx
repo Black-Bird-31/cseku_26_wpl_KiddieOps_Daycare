@@ -35,6 +35,7 @@ import {
   FileText,
   AlertCircle,
   Filter,
+  Search,
   ExternalLink
 } from "lucide-react";
 import { store, ChildRecord, UserRecord, initialUsers } from "@/lib/mock-data";
@@ -54,8 +55,9 @@ import {
   ParentMedicalRecordItem,
   AttendanceHistorySummary,
 } from "@/lib/actions/parent";
+import { getCenterNoticesAction, AdminNoticeItem } from "@/lib/actions/admin";
 
-type ActiveTab = "overview" | "gallery" | "medical" | "attendance";
+type ActiveTab = "overview" | "notices" | "gallery" | "medical" | "attendance";
 
 export default function ParentDashboardPage() {
   const [parentUser, setParentUser] = useState<UserRecord>(initialUsers[2]); // Farhana Ahmed
@@ -63,6 +65,10 @@ export default function ParentDashboardPage() {
   const [selectedChild, setSelectedChild] = useState<ChildRecord | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [noticesCount, setNoticesCount] = useState(0);
+  const [centerNotices, setCenterNotices] = useState<AdminNoticeItem[]>([]);
+  const [noticesLoading, setNoticesLoading] = useState(false);
+  const [noticePriorityFilter, setNoticePriorityFilter] = useState<string>("all");
+  const [noticeSearchQuery, setNoticeSearchQuery] = useState("");
   const [complaintsCount, setComplaintsCount] = useState(0);
   const [globalBanner, setGlobalBanner] = useState<string | null>(null);
 
@@ -199,7 +205,45 @@ export default function ParentDashboardPage() {
       console.error("Error initializing parent data:", e);
     }
 
-    setNoticesCount(store.getNotices().length);
+    // Load Center Notices from PostgreSQL database (live sync)
+    try {
+      setNoticesLoading(true);
+      const ntcRes = await getCenterNoticesAction();
+      if (ntcRes.success && ntcRes.notices) {
+        const forParents = ntcRes.notices.filter((n) => n.targetAudience !== "caregivers");
+        setCenterNotices(forParents);
+        setNoticesCount(forParents.length);
+      } else {
+        const fallback = store.getNotices().filter((n) => n.targetAudience !== "caregivers").map((n) => ({
+          id: n.id,
+          title: n.title,
+          content: n.content,
+          priority: n.priority,
+          targetAudience: n.targetAudience,
+          authorName: n.authorName,
+          classroomId: null,
+          publishedAt: n.publishedAt,
+        }));
+        setCenterNotices(fallback);
+        setNoticesCount(fallback.length);
+      }
+    } catch {
+      const fallback = store.getNotices().filter((n) => n.targetAudience !== "caregivers").map((n) => ({
+        id: n.id,
+        title: n.title,
+        content: n.content,
+        priority: n.priority,
+        targetAudience: n.targetAudience,
+        authorName: n.authorName,
+        classroomId: null,
+        publishedAt: n.publishedAt,
+      }));
+      setCenterNotices(fallback);
+      setNoticesCount(fallback.length);
+    } finally {
+      setNoticesLoading(false);
+    }
+
     setComplaintsCount(store.getComplaintsForParent(current.id).length);
   }, [loadAllChildData]);
 
@@ -270,10 +314,10 @@ export default function ParentDashboardPage() {
       });
 
       if (res.success) {
-        setGlobalBanner(`Excused leave request recorded for ${selectedChild.name} on ${leaveDate}.`);
+        setGlobalBanner(`Leave request submitted for ${selectedChild.name} on ${leaveDate}! Awaiting Caregiver or Administrator review.`);
         setIsLeaveModalOpen(false);
         fetchAttendanceHistory(selectedChild.id);
-        setTimeout(() => setGlobalBanner(null), 4500);
+        setTimeout(() => setGlobalBanner(null), 5000);
       }
     } catch (err) {
       console.error(err);
@@ -358,6 +402,14 @@ export default function ParentDashboardPage() {
   const latestNap = liveFeed.activities.find((a) => a.activityType === "nap");
   const latestNewWord = liveFeed.activities.find((a) => a.details?.includes("New Word Spoken"));
   const latestMood = liveFeed.activities.find((a) => a.activityType === "mood_note");
+
+  // Caregiver authored notices & announcements
+  const caregiverNotices = centerNotices.filter((n) =>
+    n.authorRole === "caregiver" ||
+    n.authorName?.toLowerCase().includes("caregiver") ||
+    n.authorName?.toLowerCase().includes("teacher") ||
+    n.authorName?.toLowerCase().includes("nusrat")
+  );
 
   return (
     <AuthGuard allowedRoles={["parent"]}>
@@ -580,6 +632,110 @@ export default function ParentDashboardPage() {
               </div>
 
               {/* ============================================================ */}
+              {/* 📢 OFFICIAL DAYCARE NOTICES & ANNOUNCEMENTS SECTION */}
+              {/* ============================================================ */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center">
+                      <BellRing className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h2 className="font-child text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                        <span>Center Notices & Announcements</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                          {centerNotices.length} Active
+                        </span>
+                      </h2>
+                      <p className="text-[11px] sm:text-xs text-slate-500">
+                        Official updates, holiday schedules, and health advisories published by Daycare Administration.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveTab("notices")}
+                      className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs flex items-center gap-1 transition-colors border border-amber-200 cursor-pointer"
+                    >
+                      <BellRing className="w-3.5 h-3.5 text-amber-600" />
+                      <span>View All Board Notices →</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Latest Notices Grid */}
+                {noticesLoading ? (
+                  <div className="p-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />
+                    <span>Loading latest notices from center...</span>
+                  </div>
+                ) : centerNotices.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl">
+                    No active center notices currently published. All operations running on standard schedule.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {centerNotices.slice(0, 4).map((notice) => {
+                      const isCaregiver =
+                        notice.authorRole === "caregiver" ||
+                        notice.authorName?.toLowerCase().includes("caregiver") ||
+                        notice.authorName?.toLowerCase().includes("teacher") ||
+                        notice.authorName?.toLowerCase().includes("nusrat");
+                      return (
+                        <div
+                          key={notice.id}
+                          className={`p-4 rounded-xl border transition-all space-y-2 ${
+                            isCaregiver
+                              ? "bg-emerald-50/40 border-emerald-300 ring-1 ring-emerald-300/30"
+                              : notice.priority === "urgent"
+                              ? "bg-rose-50/50 border-rose-200"
+                              : notice.priority === "holiday"
+                              ? "bg-amber-50/50 border-amber-200"
+                              : "bg-slate-50/70 border-slate-200"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-0.5">
+                              <h3 className="font-child text-sm font-bold text-slate-900 leading-snug">
+                                {notice.title}
+                              </h3>
+                              {isCaregiver && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                  <Sparkles className="w-3 h-3 text-emerald-600" /> Caregiver Update
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${
+                                notice.priority === "urgent"
+                                  ? "bg-rose-100 text-rose-700 border border-rose-200"
+                                  : notice.priority === "holiday"
+                                  ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                  : "bg-blue-100 text-blue-700 border border-blue-200"
+                              }`}
+                            >
+                              {notice.priority}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                            {notice.content}
+                          </p>
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-[11px] text-slate-500 font-medium">
+                            <span>
+                              {isCaregiver ? "Teacher: " : "By "}
+                              <strong>{notice.authorName}</strong>
+                            </span>
+                            <span>{new Date(notice.publishedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* ============================================================ */}
               {/* Parent Navigation Tabs (Aligning with WF-09, WF-10, WF-13, WF-14) */}
               {/* ============================================================ */}
               <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
@@ -592,6 +748,17 @@ export default function ParentDashboardPage() {
                   }`}
                 >
                   <Activity className="w-4 h-4" /> Daily Routine & AI Guardian
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("notices")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === "notices"
+                      ? "bg-amber-500 text-slate-950 shadow-xs"
+                      : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  }`}
+                >
+                  <BellRing className="w-4 h-4 text-amber-600" /> Center Notices ({centerNotices.length})
                 </button>
 
                 <button
@@ -878,6 +1045,43 @@ export default function ParentDashboardPage() {
                       </form>
                     </div>
 
+                    {/* Caregiver Classroom Notices for this child */}
+                    {caregiverNotices.length > 0 && (
+                      <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300/80 text-emerald-950 space-y-3 shadow-xs">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 font-child text-sm font-extrabold text-emerald-900">
+                            <BellRing className="w-4 h-4 text-emerald-600" />
+                            <span>Caregiver Direct Notes & Classroom Bulletins</span>
+                          </div>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 uppercase tracking-wider">
+                            Live from Caregiver
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {caregiverNotices.slice(0, 3).map((cn) => (
+                            <div key={cn.id} className="p-3.5 bg-white rounded-xl border border-emerald-200 text-xs space-y-1.5 shadow-2xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-slate-900 text-xs sm:text-sm">{cn.title}</span>
+                                <span className="text-[11px] text-slate-400 font-mono">
+                                  {new Date(cn.publishedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                </span>
+                              </div>
+                              <p className="text-slate-600 leading-relaxed text-xs">{cn.content}</p>
+                              <div className="text-[11px] text-emerald-800 font-medium pt-1 border-t border-slate-100 flex items-center justify-between">
+                                <span className="flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 text-emerald-600" />
+                                  <span>Classroom Teacher: <strong>{cn.authorName}</strong></span>
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase">
+                                  {cn.priority}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Today's Classroom Routine Stream */}
                     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
                       <div className="flex items-center justify-between">
@@ -1043,15 +1247,15 @@ export default function ParentDashboardPage() {
                             </div>
                           )}
 
-                          <div className="p-3.5 space-y-1 bg-white border-t border-slate-100">
+                          <div className="p-3.5 space-y-1.5 bg-white border-t border-slate-100">
                             <p className="text-xs font-semibold text-slate-800 line-clamp-2">
                               {post.caption || "Classroom moment with friends"}
                             </p>
-                            <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1">
-                              <span>
-                                {new Date(post.capturedAt).toLocaleDateString()}
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-50">
+                              <span className="inline-flex items-center gap-1 font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                                {post.authorRole === "administrator" ? "Admin" : "Caregiver"}: {post.authorName || "Teacher"}
                               </span>
-                              <span>
+                              <span className="font-mono text-slate-400">
                                 {new Date(post.capturedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                               </span>
                             </div>
@@ -1077,8 +1281,14 @@ export default function ParentDashboardPage() {
                         </h2>
                       </div>
                       <p className="text-xs text-slate-500">
-                        Official health records for {selectedChild.name}. Medical instructions are synchronized with classroom caregivers.
+                        Official health records for {selectedChild.name}. Medical instructions are synchronized with classroom caregivers and administrators.
                       </p>
+                      {medicalRecord?.lastUpdatedByName && (
+                        <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Last updated by: <strong>{medicalRecord.lastUpdatedByName}</strong> ({medicalRecord.lastUpdatedByRole === "administrator" ? "Administrator" : "Caregiver"}) {medicalRecord.updatedAt ? `on ${new Date(medicalRecord.updatedAt).toLocaleDateString()}` : ""}</span>
+                        </div>
+                      )}
                     </div>
 
                     <button
@@ -1208,10 +1418,63 @@ export default function ParentDashboardPage() {
                     </div>
                   )}
 
+                  {/* Submitted Leave Requests Review Status (WF-14, REQ16) */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50">
+                    <div className="p-3.5 bg-slate-100/70 border-b border-slate-200 text-xs font-bold text-slate-700 flex justify-between items-center">
+                      <span className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-emerald-600" />
+                        Submitted Leave Requests (Caregiver / Admin Approval Queue)
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-normal">
+                        Total Requests: {attendanceSummary?.leaveRequests?.length || 0}
+                      </span>
+                    </div>
+
+                    {!attendanceSummary?.leaveRequests || attendanceSummary.leaveRequests.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-slate-400">
+                        No pending or reviewed leave requests for {selectedChild.name}. Use the button above to request an excused absence.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-100 bg-white">
+                        {attendanceSummary.leaveRequests.map((req) => (
+                          <div key={req.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-slate-50/70 transition-colors">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-slate-900">{req.date}</span>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold capitalize ${
+                                  req.status === "approved"
+                                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                    : req.status === "rejected"
+                                    ? "bg-rose-100 text-rose-800 border border-rose-300"
+                                    : "bg-amber-100 text-amber-900 border border-amber-300 animate-pulse"
+                                }`}>
+                                  {req.status === "approved"
+                                    ? "✓ Approved by Staff (Excused)"
+                                    : req.status === "rejected"
+                                    ? "✕ Rejected by Staff"
+                                    : "⏳ Pending Caregiver/Admin Approval"}
+                                </span>
+                              </div>
+                              <div className="text-slate-600">
+                                <strong>Reason:</strong> {req.reason}
+                              </div>
+                              {req.reviewedByName && (
+                                <div className="text-[11px] text-slate-500">
+                                  Reviewed by: <strong>{req.reviewedByName}</strong> ({req.reviewedByRole})
+                                  {req.reviewerNotes ? ` • Notes: ${req.reviewerNotes}` : ""}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Historical Table */}
                   <div className="border border-slate-200 rounded-xl overflow-hidden">
                     <div className="p-3.5 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-700 flex justify-between">
-                      <span>Historical Log (Last 30 Days)</span>
+                      <span>Daily Classroom Attendance Log (Last 30 Days)</span>
                       <span>Total: {attendanceSummary?.records.length || 0} Records</span>
                     </div>
 
@@ -1234,6 +1497,11 @@ export default function ParentDashboardPage() {
                               >
                                 {rec.status}
                               </span>
+                              {rec.recordedByName && (
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  • Logged by {rec.recordedByName} ({rec.recordedByRole === "administrator" ? "Admin" : "Caregiver"})
+                                </span>
+                              )}
                             </div>
                             <div className="text-[11px] text-slate-500">
                               {rec.notes || "Standard attendance record"}
@@ -1246,6 +1514,172 @@ export default function ParentDashboardPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ============================================================ */}
+              {/* TAB 5: Full Center Notices Board View */}
+              {/* ============================================================ */}
+              {activeTab === "notices" && (
+                <div className="space-y-6 animate-in fade-in">
+                  {/* Header & Filter Controls */}
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h2 className="font-child text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+                          <BellRing className="w-6 h-6 text-amber-500" />
+                          <span>Center Notices & Administrative Bulletins</span>
+                        </h2>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                          Official notifications directly broadcasted by Daycare Principal & Administration.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={loadData}
+                          disabled={noticesLoading}
+                          className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${noticesLoading ? "animate-spin" : ""}`} />
+                          <span>Refresh Board</span>
+                        </button>
+                        <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                          {centerNotices.length} Total Notices
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Search and Priority Filter Bar */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                      <div className="relative w-full sm:w-80">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={noticeSearchQuery}
+                          onChange={(e) => setNoticeSearchQuery(e.target.value)}
+                          placeholder="Search notice titles or keywords..."
+                          className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
+                        <span className="text-xs text-slate-500 font-semibold mr-1">Filter:</span>
+                        {["all", "urgent", "holiday", "normal"].map((p) => (
+                          <button
+                            key={p}
+                            onClick={() => setNoticePriorityFilter(p)}
+                            className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
+                              noticePriorityFilter === p
+                                ? "bg-slate-900 text-white shadow-xs"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notices List */}
+                  <div className="space-y-4">
+                    {centerNotices
+                      .filter((n) => {
+                        const matchesP = noticePriorityFilter === "all" || n.priority === noticePriorityFilter;
+                        const matchesQ =
+                          n.title.toLowerCase().includes(noticeSearchQuery.toLowerCase()) ||
+                          n.content.toLowerCase().includes(noticeSearchQuery.toLowerCase());
+                        return matchesP && matchesQ;
+                      })
+                      .map((notice) => {
+                        const isCaregiverNotice =
+                          notice.authorRole === "caregiver" ||
+                          notice.authorName?.toLowerCase().includes("caregiver") ||
+                          notice.authorName?.toLowerCase().includes("teacher") ||
+                          notice.authorName?.toLowerCase().includes("nusrat");
+                        return (
+                          <div
+                            key={notice.id}
+                            className={`p-6 rounded-2xl border shadow-xs space-y-3 bg-white transition-all ${
+                              isCaregiverNotice
+                                ? "border-emerald-300 ring-1 ring-emerald-300/40 bg-emerald-50/10"
+                                : notice.priority === "urgent"
+                                ? "border-rose-300 ring-1 ring-rose-300/40"
+                                : notice.priority === "holiday"
+                                ? "border-amber-300 ring-1 ring-amber-300/40"
+                                : "border-slate-200"
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="flex items-center gap-2.5">
+                                <span
+                                  className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                                    isCaregiverNotice
+                                      ? "bg-emerald-500"
+                                      : notice.priority === "urgent"
+                                      ? "bg-rose-500 animate-ping"
+                                      : notice.priority === "holiday"
+                                      ? "bg-amber-500"
+                                      : "bg-blue-500"
+                                  }`}
+                                />
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h3 className="font-child text-lg font-bold text-slate-900">
+                                    {notice.title}
+                                  </h3>
+                                  {isCaregiverNotice && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                      Caregiver Bulletin
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-bold capitalize self-start sm:self-auto ${
+                                  notice.priority === "urgent"
+                                    ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                    : notice.priority === "holiday"
+                                    ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                    : "bg-blue-100 text-blue-700 border border-blue-200"
+                                }`}
+                              >
+                                {notice.priority} Alert
+                              </span>
+                            </div>
+
+                            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                              {notice.content}
+                            </p>
+
+                            <div className="flex flex-wrap items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500 gap-2">
+                              <div className="flex items-center gap-2">
+                                <span>
+                                  {isCaregiverNotice ? "Classroom Teacher: " : "Published by "}
+                                  <strong>{notice.authorName}</strong>
+                                </span>
+                                {notice.classroomName && (
+                                  <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold">
+                                    {notice.classroomName}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-400">
+                                <Calendar className="w-3.5 h-3.5" />
+                                <span>{new Date(notice.publishedAt).toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" })}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                    {centerNotices.length === 0 && (
+                      <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-sm">
+                        No center notices found.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1350,7 +1784,7 @@ export default function ParentDashboardPage() {
                         Request Excused Absence / Leave
                       </h3>
                       <p className="text-xs text-slate-500">
-                        Notify daycare staff of upcoming sick leave, medical appointments, or family vacation.
+                        Notify daycare staff of upcoming sick leave, medical appointments, or family vacation. Caregivers and Administrators will review and approve your request.
                       </p>
                     </div>
 

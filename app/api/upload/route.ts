@@ -59,23 +59,42 @@ export async function POST(req: NextRequest) {
       entityId,
     });
 
+    let pgAssetId: string | undefined = undefined;
     try {
       const { db } = await import("@/lib/db");
       const { mediaAssets } = await import("@/lib/db/schema");
-      await db.insert(mediaAssets).values({
-        publicId: uploadResult.publicId,
-        secureUrl: uploadResult.secureUrl,
-        resourceType: uploadResult.resourceType as any,
-        format: uploadResult.format,
-        entityType,
-      }).onConflictDoNothing();
+      const { eq } = await import("drizzle-orm");
+
+      const [inserted] = await db
+        .insert(mediaAssets)
+        .values({
+          publicId: uploadResult.publicId,
+          secureUrl: uploadResult.secureUrl,
+          resourceType: uploadResult.resourceType as any,
+          format: uploadResult.format,
+          entityType,
+          entityId: entityId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(entityId) ? entityId : null,
+        })
+        .onConflictDoNothing()
+        .returning();
+
+      if (inserted?.id) {
+        pgAssetId = inserted.id;
+      } else {
+        const existing = await db
+          .select({ id: mediaAssets.id })
+          .from(mediaAssets)
+          .where(eq(mediaAssets.publicId, uploadResult.publicId))
+          .limit(1);
+        if (existing[0]?.id) pgAssetId = existing[0].id;
+      }
     } catch (dbErr) {
       console.warn("DB mediaAssets sync note in upload route:", dbErr);
     }
 
     return NextResponse.json({
       success: true,
-      assetId: savedAsset.id,
+      assetId: pgAssetId || savedAsset.id,
       publicId: uploadResult.publicId,
       secureUrl: uploadResult.secureUrl,
       format: uploadResult.format,
