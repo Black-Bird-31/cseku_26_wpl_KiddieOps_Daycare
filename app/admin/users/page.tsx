@@ -21,8 +21,9 @@ import {
   Eye,
   EyeOff
 } from "lucide-react";
-import { store, UserRecord } from "@/lib/mock-data";
+import { store, UserRecord, ChildRecord } from "@/lib/mock-data";
 import { getUsersAction, createUserAction, updateUserAction, toggleUserStatusAction, deleteUserAction } from "@/lib/actions/users";
+import { getAllChildrenAction } from "@/lib/actions/children";
 import CloudinaryUploader from "@/components/ui/CloudinaryUploader";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import AuthGuard from "@/components/auth/AuthGuard";
@@ -32,6 +33,9 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   
+  // Children roster for linking
+  const [availableChildren, setAvailableChildren] = useState<ChildRecord[]>([]);
+
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
@@ -48,6 +52,15 @@ export default function AdminUsersPage() {
     role: "parent" as "administrator" | "caregiver" | "parent",
     isActive: true,
     avatarUrl: "",
+    // Child association
+    childMode: "existing" as "existing" | "new" | "none",
+    existingChildId: "",
+    relationship: "Mother",
+    newChildName: "",
+    newChildDob: "",
+    newChildAllergyFlag: false,
+    newChildAllergyDetails: "",
+    newChildEmergencyPhone: "",
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
@@ -62,8 +75,25 @@ export default function AdminUsersPage() {
     }
   };
 
+  const loadChildren = async () => {
+    const res = await getAllChildrenAction("administrator");
+    if (res.success && res.children) {
+      setAvailableChildren(res.children);
+      if (res.children.length > 0 && !formData.existingChildId) {
+        setFormData((prev) => ({ ...prev, existingChildId: res.children![0].id }));
+      }
+    } else {
+      const fallback = store.getChildren();
+      setAvailableChildren(fallback);
+      if (fallback.length > 0 && !formData.existingChildId) {
+        setFormData((prev) => ({ ...prev, existingChildId: fallback[0].id }));
+      }
+    }
+  };
+
   useEffect(() => {
     loadUsers();
+    loadChildren();
   }, []);
 
   const filteredUsers = users.filter((u) => {
@@ -83,6 +113,14 @@ export default function AdminUsersPage() {
       role: "parent",
       isActive: true,
       avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80",
+      childMode: "existing",
+      existingChildId: availableChildren[0]?.id || "",
+      relationship: "Mother",
+      newChildName: "",
+      newChildDob: "",
+      newChildAllergyFlag: false,
+      newChildAllergyDetails: "",
+      newChildEmergencyPhone: "",
     });
     setFormError(null);
     setFormSuccess(null);
@@ -99,6 +137,14 @@ export default function AdminUsersPage() {
       role: user.role,
       isActive: user.isActive,
       avatarUrl: user.avatarUrl || "",
+      childMode: "none",
+      existingChildId: "",
+      relationship: "",
+      newChildName: "",
+      newChildDob: "",
+      newChildAllergyFlag: false,
+      newChildAllergyDetails: "",
+      newChildEmergencyPhone: "",
     });
     setFormError(null);
     setFormSuccess(null);
@@ -109,14 +155,49 @@ export default function AdminUsersPage() {
     setFormError(null);
     setFormSuccess(null);
 
-    const res = await createUserAction("administrator", formData);
+    const payload: any = {
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+      role: formData.role,
+      isActive: formData.isActive,
+      avatarUrl: formData.avatarUrl,
+    };
+
+    if (formData.role === "parent") {
+      payload.childMode = formData.childMode;
+      payload.relationship = formData.relationship;
+      if (formData.childMode === "existing") {
+        if (!formData.existingChildId) {
+          setFormError("Please select a child to associate with this parent.");
+          return;
+        }
+        payload.existingChildId = formData.existingChildId;
+      } else if (formData.childMode === "new") {
+        if (!formData.newChildName.trim() || !formData.newChildDob) {
+          setFormError("Please provide child name and date of birth.");
+          return;
+        }
+        payload.newChild = {
+          name: formData.newChildName.trim(),
+          dateOfBirth: formData.newChildDob,
+          allergyFlag: formData.newChildAllergyFlag,
+          allergyDetails: formData.newChildAllergyDetails,
+          emergencyContactName: formData.name,
+          emergencyContactPhone: formData.newChildEmergencyPhone || "01700-000000",
+        };
+      }
+    }
+
+    const res = await createUserAction("administrator", payload);
     if (!res.success) {
       setFormError(res.error || "Failed to create user");
       return;
     }
 
-    setFormSuccess("User account created successfully!");
+    setFormSuccess("User account & child association created successfully!");
     loadUsers();
+    loadChildren();
     setTimeout(() => {
       setIsAddModalOpen(false);
       setFormSuccess(null);
@@ -492,6 +573,139 @@ export default function AdminUsersPage() {
                       <option value="administrator">Administrator</option>
                     </select>
                   </div>
+
+                  {/* Child Association Section for Parents (REQ 3) */}
+                  {!editingUser && formData.role === "parent" && (
+                    <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                          <Baby className="w-4 h-4 text-amber-600" /> Child Association
+                        </label>
+                        <div className="flex items-center gap-2 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, childMode: "existing" })}
+                            className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                              formData.childMode === "existing"
+                                ? "bg-amber-600 text-white shadow-xs"
+                                : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            Existing Child
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, childMode: "new" })}
+                            className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                              formData.childMode === "new"
+                                ? "bg-amber-600 text-white shadow-xs"
+                                : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            + New Child
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-700">Relationship to Child</label>
+                        <select
+                          value={formData.relationship}
+                          onChange={(e) => setFormData({ ...formData, relationship: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-amber-600 focus:outline-none"
+                        >
+                          <option value="Mother">Mother</option>
+                          <option value="Father">Father</option>
+                          <option value="Legal Guardian">Legal Guardian</option>
+                          <option value="Grandparent">Grandparent</option>
+                        </select>
+                      </div>
+
+                      {formData.childMode === "existing" && (
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-slate-700">Select Enrolled Child *</label>
+                          {availableChildren.length === 0 ? (
+                            <p className="text-xs text-slate-500 italic">No existing children found. Please choose New Child.</p>
+                          ) : (
+                            <select
+                              value={formData.existingChildId}
+                              onChange={(e) => setFormData({ ...formData, existingChildId: e.target.value })}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-amber-600 focus:outline-none"
+                            >
+                              {availableChildren.map((child) => (
+                                <option key={child.id} value={child.id}>
+                                  {child.name} ({child.classroomName || "General"}) — DOB: {child.dateOfBirth}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      )}
+
+                      {formData.childMode === "new" && (
+                        <div className="space-y-2.5 pt-1 border-t border-amber-200/50">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-slate-700">Child's Name *</label>
+                              <input
+                                type="text"
+                                value={formData.newChildName}
+                                onChange={(e) => setFormData({ ...formData, newChildName: e.target.value })}
+                                placeholder="e.g. Aayan Rahman"
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-amber-600 focus:outline-none"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-slate-700">Date of Birth *</label>
+                              <input
+                                type="date"
+                                value={formData.newChildDob}
+                                onChange={(e) => setFormData({ ...formData, newChildDob: e.target.value })}
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-amber-600 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-700">Emergency Contact Phone</label>
+                            <input
+                              type="tel"
+                              value={formData.newChildEmergencyPhone}
+                              onChange={(e) => setFormData({ ...formData, newChildEmergencyPhone: e.target.value })}
+                              placeholder="e.g. +880 1712-345678"
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-amber-600 focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-1">
+                            <input
+                              type="checkbox"
+                              id="newChildAllergyCheck"
+                              checked={formData.newChildAllergyFlag}
+                              onChange={(e) => setFormData({ ...formData, newChildAllergyFlag: e.target.checked })}
+                              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-3.5 h-3.5"
+                            />
+                            <label htmlFor="newChildAllergyCheck" className="text-[11px] font-semibold text-slate-700 cursor-pointer">
+                              Child has known allergies / medical alerts
+                            </label>
+                          </div>
+
+                          {formData.newChildAllergyFlag && (
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-semibold text-rose-700">Allergy Details & Precautions</label>
+                              <input
+                                type="text"
+                                value={formData.newChildAllergyDetails}
+                                onChange={(e) => setFormData({ ...formData, newChildAllergyDetails: e.target.value })}
+                                placeholder="e.g. Peanuts, Dairy, Penicillin"
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-rose-300 text-xs text-slate-900 focus:border-rose-600 focus:outline-none"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {formError && (
                     <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">

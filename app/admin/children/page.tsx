@@ -21,6 +21,7 @@ import {
 import { store, ChildRecord, ClassroomRecord, UserRecord } from "@/lib/mock-data";
 import { getAllChildrenAction, createChildAction, updateChildAction, deleteChildAction } from "@/lib/actions/children";
 import { getUsersAction } from "@/lib/actions/users";
+import { getClassroomsAction } from "@/lib/actions/classrooms";
 import CloudinaryUploader from "@/components/ui/CloudinaryUploader";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import AuthGuard from "@/components/auth/AuthGuard";
@@ -65,9 +66,15 @@ export default function AdminChildrenPage() {
       setChildren(store.getChildren());
     }
 
-    setClassrooms(store.getClassrooms());
+    // 2. Fetch classrooms from PostgreSQL
+    const classRes = await getClassroomsAction();
+    if (classRes.success && classRes.classrooms) {
+      setClassrooms(classRes.classrooms);
+    } else {
+      setClassrooms(store.getClassrooms());
+    }
 
-    // 2. Fetch parents from PostgreSQL
+    // 3. Fetch parents from PostgreSQL
     const userRes = await getUsersAction("administrator");
     if (userRes.success && userRes.users) {
       setParents(userRes.users.filter((u) => u.role === "parent"));
@@ -445,6 +452,68 @@ export default function AdminChildrenPage() {
                     </select>
                   </div>
 
+                  {/* Parent / Guardian Database Selection */}
+                  <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-blue-600" />
+                        Linked Parent / Guardian (From Database) *
+                      </label>
+                      <span className="text-[11px] text-blue-600 font-medium">
+                        {parents.length} registered parent{parents.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-600">Select Parent Account</label>
+                        <select
+                          required
+                          value={formData.guardianIds[0] || ""}
+                          onChange={(e) => {
+                            const selectedId = e.target.value;
+                            const selectedParent = parents.find((p) => p.id === selectedId);
+                            setFormData({
+                              ...formData,
+                              guardianIds: selectedId ? [selectedId] : [],
+                              // Autofill emergency contact name if blank or unchanged
+                              emergencyContactName:
+                                !formData.emergencyContactName || formData.emergencyContactName === "Farhana Ahmed"
+                                  ? selectedParent?.name || formData.emergencyContactName
+                                  : formData.emergencyContactName,
+                            });
+                          }}
+                          className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-blue-600 focus:outline-none"
+                        >
+                          {parents.length === 0 ? (
+                            <option value="">No parents found in database</option>
+                          ) : (
+                            parents.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} ({p.email})
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-slate-600">Relationship to Child</label>
+                        <select
+                          value={formData.guardianRelationship}
+                          onChange={(e) => setFormData({ ...formData, guardianRelationship: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-blue-600 focus:outline-none"
+                        >
+                          <option value="Mother">Mother</option>
+                          <option value="Father">Father</option>
+                          <option value="Legal Guardian">Legal Guardian</option>
+                          <option value="Grandparent">Grandparent</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-slate-700">Emergency Contact Name *</label>
@@ -453,7 +522,7 @@ export default function AdminChildrenPage() {
                         required
                         value={formData.emergencyContactName}
                         onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
-                        placeholder="e.g. Farhana Ahmed (Mother)"
+                        placeholder="e.g. Farhana Ahmed"
                         className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-blue-600 focus:outline-none"
                       />
                     </div>

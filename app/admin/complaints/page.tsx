@@ -315,9 +315,16 @@ export default function AdminComplaintsPage() {
                       </p>
 
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-                        <div>
-                          Parent: <strong className="text-slate-700">{comp.parentName}</strong> · Staff:{" "}
-                          <strong className="text-slate-700">{comp.caregiverName}</strong>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {comp.childName && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/60 font-semibold text-[10px]">
+                              👶 Child: {comp.childName}
+                            </span>
+                          )}
+                          <span>
+                            Parent: <strong className="text-slate-700">{comp.parentName}</strong> · Staff:{" "}
+                            <strong className="text-slate-700">{comp.caregiverName}</strong>
+                          </span>
                         </div>
                         {comp.proofAttachmentUrl && (
                           <a

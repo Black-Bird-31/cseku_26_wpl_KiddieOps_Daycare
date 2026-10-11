@@ -867,17 +867,7 @@ export async function getChildLiveFeedAction(childId: string): Promise<{
       .from(childMediaPosts)
       .innerJoin(mediaAssets, eq(childMediaPosts.mediaAssetId, mediaAssets.id))
       .leftJoin(users, eq(childMediaPosts.caregiverUserId, users.id))
-      .where(
-        or(
-          eq(childMediaPosts.childId, childId),
-          and(
-            sql`${childMediaPosts.childId} IS NULL`,
-            currentChild.child.classroomId
-              ? eq(childMediaPosts.classroomId, currentChild.child.classroomId)
-              : sql`false`
-          )
-        )
-      )
+      .where(eq(childMediaPosts.childId, childId))
       .orderBy(desc(childMediaPosts.capturedAt))
       .limit(30);
 

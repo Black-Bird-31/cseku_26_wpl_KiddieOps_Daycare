@@ -100,7 +100,8 @@ export async function seedDatabase() {
     console.log("-> Seeding Users...");
     const adminUserId = "a0000000-0000-0000-0000-000000000001";
     const caregiverUserId = adminUserId;
-    const parentUserId = adminUserId;
+    const parentUserId = "a0000000-0000-0000-0000-000000000002";
+    const parentUser2Id = "a0000000-0000-0000-0000-000000000003";
 
     await db.insert(users).values([
       {
@@ -109,6 +110,22 @@ export async function seedDatabase() {
         email: "admin@kiddieops.com",
         passwordHash: "admin123",
         role: "administrator",
+        isActive: true,
+      },
+      {
+        id: parentUserId,
+        name: "Farhana Ahmed",
+        email: "parent@kiddieops.com",
+        passwordHash: "parent123",
+        role: "parent",
+        isActive: true,
+      },
+      {
+        id: parentUser2Id,
+        name: "Tariq Chowdhury",
+        email: "tariq@gmail.com",
+        passwordHash: "parent123",
+        role: "parent",
         isActive: true,
       },
     ]).onConflictDoNothing();

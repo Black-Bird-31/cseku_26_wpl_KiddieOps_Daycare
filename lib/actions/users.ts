@@ -13,6 +13,8 @@ import {
   caregivers, 
   caregiverClassrooms, 
   childGuardians, 
+  children,
+  classrooms,
   activityLogs, 
   attendance, 
   complaints, 
@@ -87,6 +89,20 @@ export async function createUserAction(
     role: "administrator" | "caregiver" | "parent";
     isActive?: boolean;
     avatarUrl?: string;
+    // Child association parameters for parent accounts
+    childMode?: "existing" | "new" | "none";
+    existingChildId?: string;
+    relationship?: string;
+    newChild?: {
+      name: string;
+      dateOfBirth: string;
+      classroomId?: string;
+      allergyFlag?: boolean;
+      allergyDetails?: string;
+      emergencyContactName?: string;
+      emergencyContactPhone?: string;
+      avatarUrl?: string;
+    };
   }
 ): Promise<UserActionResult> {
   if (!canManageUsers(currentRole)) {
@@ -137,8 +153,107 @@ export async function createUserAction(
     avatarUrl: data.avatarUrl || undefined,
   });
 
+  // If role is parent and child details provided, link or create child
+  if (data.role === "parent") {
+    const rel = data.relationship?.trim() || "Parent / Primary Guardian";
+
+    if (data.childMode === "existing" && data.existingChildId) {
+      // 1. Link to existing child in DB
+      if (isUUID(newUser.id) && isUUID(data.existingChildId)) {
+        try {
+          await db
+            .insert(childGuardians)
+            .values({
+              childId: data.existingChildId,
+              userId: newUser.id,
+              relationshipLabel: rel,
+            })
+            .onConflictDoNothing();
+        } catch (linkErr) {
+          console.warn("DB child link note in createUserAction:", linkErr);
+        }
+      }
+
+      // Also link in store
+      const storeChild = store.getChildById(data.existingChildId);
+      if (storeChild && !storeChild.guardianIds.includes(newUser.id)) {
+        storeChild.guardianIds.push(newUser.id);
+      }
+    } else if (data.childMode === "new" && data.newChild && data.newChild.name) {
+      // 2. Create new child profile and link
+      let dbNewChildId: string | undefined = undefined;
+
+      if (isUUID(newUser.id)) {
+        try {
+          let targetRoomId: string | null = null;
+          if (data.newChild.classroomId && isUUID(data.newChild.classroomId)) {
+            targetRoomId = data.newChild.classroomId;
+          } else {
+            const defRoom = await db.select().from(classrooms).limit(1);
+            targetRoomId = defRoom[0]?.id || null;
+          }
+
+          const [insertedChild] = await db
+            .insert(children)
+            .values({
+              name: data.newChild.name.trim(),
+              dateOfBirth: data.newChild.dateOfBirth || "2023-01-01",
+              classroomId: targetRoomId,
+              allergyFlag: !!data.newChild.allergyFlag,
+              emergencyContactName: data.newChild.emergencyContactName?.trim() || newUser.name,
+              emergencyContactPhone: data.newChild.emergencyContactPhone?.trim() || "01700-000000",
+            })
+            .returning();
+
+          if (insertedChild) {
+            dbNewChildId = insertedChild.id;
+
+            // Link to new parent
+            await db.insert(childGuardians).values({
+              childId: insertedChild.id,
+              userId: newUser.id,
+              relationshipLabel: rel,
+            }).onConflictDoNothing();
+
+            // Insert initial medical record if allergy specified
+            if (data.newChild.allergyFlag || data.newChild.allergyDetails) {
+              await db.insert(medicalRecords).values({
+                childId: insertedChild.id,
+                allergies: data.newChild.allergyDetails?.trim() || "Allergy reported at registration",
+                hasSevereAllergy: !!data.newChild.allergyFlag,
+                specialCareInstructions: "Follow standard emergency care protocol",
+              }).onConflictDoNothing();
+            }
+          }
+        } catch (newChildErr) {
+          console.warn("DB new child creation note in createUserAction:", newChildErr);
+        }
+      }
+
+      // Add to store
+      const addedChild = store.addChild({
+        name: data.newChild.name.trim(),
+        dateOfBirth: data.newChild.dateOfBirth || "2023-01-01",
+        classroomId: data.newChild.classroomId || "room-butterflies",
+        allergyFlag: !!data.newChild.allergyFlag,
+        allergyDetails: data.newChild.allergyDetails?.trim() || undefined,
+        emergencyContactName: data.newChild.emergencyContactName?.trim() || newUser.name,
+        emergencyContactPhone: data.newChild.emergencyContactPhone?.trim() || "01700-000000",
+        guardianIds: [newUser.id],
+        guardianRelationship: rel,
+        avatarUrl: data.newChild.avatarUrl || "https://images.unsplash.com/photo-1543332164-6e82f355badc?auto=format&fit=crop&w=400&q=80",
+      });
+      if (dbNewChildId && addedChild) {
+        addedChild.id = dbNewChildId;
+      }
+    }
+  }
+
   safeRevalidate("/admin/users");
+  safeRevalidate("/admin/children");
   safeRevalidate("/admin");
+  safeRevalidate("/caregiver");
+  safeRevalidate("/parent");
   return { success: true, user: newUser };
 }
 

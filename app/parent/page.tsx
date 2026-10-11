@@ -52,6 +52,7 @@ import {
   updateParentChildContactAction,
   getChildAttendanceHistoryAction,
   requestChildLeaveAction,
+  queryParentAiAssistantAction,
   ParentMedicalRecordItem,
   AttendanceHistorySummary,
 } from "@/lib/actions/parent";
@@ -325,8 +326,8 @@ export default function ParentDashboardPage() {
     setIsSubmittingLeave(false);
   };
 
-  // AI Guardian response simulation with live context and bilingual support (WF-12)
-  const handleSendQuery = (textToSend?: string) => {
+  // AI Guardian response connected to secure backend action (Requirement 4, WF-12)
+  const handleSendQuery = async (textToSend?: string) => {
     const query = textToSend || inputQuery;
     if (!query.trim()) return;
 
@@ -338,56 +339,38 @@ export default function ParentDashboardPage() {
     setInputQuery("");
     setIsAiTyping(true);
 
-    setTimeout(() => {
-      let aiResponse = "";
-      const lower = query.toLowerCase();
+    try {
+      const res = await queryParentAiAssistantAction({
+        parentUserId: parentUser.id,
+        childId: selectedChild?.id,
+        queryText: query,
+        languageMode: aiLanguageMode,
+      });
 
-      if (aiLanguageMode === "bn") {
-        if (lower.includes("খাবার") || lower.includes("খেয়েছে") || lower.includes("meal") || lower.includes("eat")) {
-          aiResponse = `${selectedChild?.name || "আপনার সন্তান"} আজকের সকালের খাবার ও ফল আনন্দের সাথে সম্পূর্ণ খেয়েছে। পর্যাপ্ত পানি পান করেছে।`;
-        } else if (lower.includes("ঘুম") || lower.includes("nap") || lower.includes("sleep")) {
-          aiResponse = `দুপুরের ঘুমের তথ্য: প্রায় ১ ঘণ্টা ১৫ মিনিট শান্তভাবে ক্লাসরুমে ঘুমিয়েছে। ঘুম থেকে ওঠার পর মন ভালো ছিল।`;
-        } else if (lower.includes("ডায়াপার") || lower.includes("diaper")) {
-          aiResponse = `আজকে মোট ${liveFeed.todayDiaperCount} বার ডায়াপার পরিবর্তন করা হয়েছে এবং স্বাস্থ্যবিধি পর্যবেক্ষণ করা হয়েছে।`;
-        } else {
-          aiResponse = `${selectedChild?.name || "আপনার সন্তান"} আজকের দিনে ডে-কেয়ারে চমৎকার সময় কাটাচ্ছে। বন্ধুদের সাথে খেলাধুলায় অংশ নিয়েছে এবং মেজাজ ফুরফুরে রয়েছে।`;
-        }
-      } else {
-        if (lower.includes("sleep") || lower.includes("nap")) {
-          const napAct = liveFeed.activities.find((a) => a.activityType === "nap");
-          aiResponse = napAct
-            ? `Today's nap update: ${napAct.details}`
-            : `${selectedChild?.name} had an afternoon rest time of about 1 hour 15 minutes. She woke up refreshed and joined circle play.`;
-        } else if (lower.includes("eat") || lower.includes("meal") || lower.includes("food") || lower.includes("snack")) {
-          const mealAct = liveFeed.activities.find((a) => a.activityType === "meal");
-          aiResponse = mealAct
-            ? `Today's meal record: ${mealAct.details}`
-            : `She ate 100% of her morning fruits and allergen-safe oatmeal. Teacher noted she drank water and enjoyed the snack.`;
-        } else if (lower.includes("diaper")) {
-          aiResponse = `Diaper hygiene update: ${selectedChild?.name} has had ${liveFeed.todayDiaperCount} diaper changes recorded today by the caregiver.`;
-        } else if (lower.includes("word") || lower.includes("speech") || lower.includes("said")) {
-          const wordAct = liveFeed.activities.find((a) => a.details?.includes("New Word Spoken"));
-          aiResponse = wordAct
-            ? `Milestone alert! ${wordAct.details}`
-            : `During morning storytime, ${selectedChild?.name} practiced multiple new vocabulary words with teacher guidance.`;
-        } else if (lower.includes("mood") || lower.includes("feeling")) {
-          const moodAct = liveFeed.activities.find((a) => a.activityType === "mood_note");
-          aiResponse = moodAct
-            ? `Mood observation: ${moodAct.details}`
-            : `Her mood was rated 5/5 stars today. Cheerful, engaged, and cooperative during sensory play.`;
-        } else {
-          aiResponse = `Based on today's live classroom records for ${selectedChild?.name || "your child"}, she is having a wonderful day! ${
-            liveFeed.todayDiaperCount > 0 ? `Her diaper has been changed ${liveFeed.todayDiaperCount} times today. ` : ""
-          }Her mood has been cheerful and active throughout playtime.`;
-        }
-      }
+      const responseText = res.success
+        ? res.responseText
+        : res.responseText || "I am currently unable to retrieve that record. Please try again shortly.";
 
       setChatMessages([
         ...newMessages,
-        { sender: "ai" as const, text: aiResponse, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+        {
+          sender: "ai" as const,
+          text: responseText,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
       ]);
+    } catch (err: any) {
+      setChatMessages([
+        ...newMessages,
+        {
+          sender: "ai" as const,
+          text: "An error occurred while communicating with AI Guardian. Please try again.",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } finally {
       setIsAiTyping(false);
-    }, 600);
+    }
   };
 
   // Filtered media posts for gallery
@@ -433,7 +416,7 @@ export default function ParentDashboardPage() {
             </div>
 
             {/* Sub-Page Action Buttons & Child Picker */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               <button
                 onClick={() => selectedChild && loadAllChildData(selectedChild)}
                 disabled={liveFeedLoading}
@@ -445,10 +428,10 @@ export default function ParentDashboardPage() {
 
               <Link
                 href="/parent/notices"
-                className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                className="flex-1 sm:flex-none justify-center px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
               >
-                <BellRing className="w-4 h-4 text-blue-600" />
-                Notices
+                <BellRing className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                <span>Notices</span>
                 {noticesCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[10px] font-bold">
                     {noticesCount}
@@ -458,10 +441,10 @@ export default function ParentDashboardPage() {
 
               <Link
                 href="/parent/complaints"
-                className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                className="flex-1 sm:flex-none justify-center px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
               >
-                <AlertTriangle className="w-4 h-4 text-rose-600" />
-                Incident Reports
+                <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>Complaints</span>
                 {complaintsCount > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-bold">
                     {complaintsCount}
@@ -471,13 +454,13 @@ export default function ParentDashboardPage() {
 
               {/* Child Switcher (Multi-child support — WF-09) */}
               {parentChildren.length > 0 && (
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                  <span className="text-[11px] font-semibold text-slate-500 px-1.5">Child:</span>
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-auto overflow-x-auto">
+                  <span className="text-[11px] font-semibold text-slate-500 px-1.5 whitespace-nowrap">Child:</span>
                   {parentChildren.map((child) => (
                     <button
                       key={child.id}
                       onClick={() => handleSelectChild(child)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex-1 sm:flex-none text-center ${
                         selectedChild?.id === child.id
                           ? "bg-amber-500 text-slate-950 shadow-xs"
                           : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"

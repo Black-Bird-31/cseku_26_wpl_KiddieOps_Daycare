@@ -361,6 +361,25 @@ export async function updateChildAction(
 
       await db.update(children).set(patch).where(eq(children.id, childId));
 
+      // Update guardian links if provided
+      if (updates.guardianIds && updates.guardianIds.length > 0) {
+        try {
+          await db.delete(childGuardians).where(eq(childGuardians.childId, childId));
+          for (const gId of updates.guardianIds) {
+            const userCheck = await db.select().from(users).where(eq(users.id, gId)).limit(1);
+            if (userCheck[0]) {
+              await db.insert(childGuardians).values({
+                childId: childId,
+                userId: gId,
+                relationshipLabel: updates.guardianRelationship || "Guardian",
+              }).onConflictDoNothing();
+            }
+          }
+        } catch (guardErr) {
+          console.warn("DB guardian update note:", guardErr);
+        }
+      }
+
       if (updates.allergyFlag !== undefined || updates.allergyDetails !== undefined) {
         try {
           await db
