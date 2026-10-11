@@ -19,17 +19,20 @@ import {
   KeyRound,
   Mail,
   Eye,
-  EyeOff
+  EyeOff,
+  School
 } from "lucide-react";
-import { store, UserRecord, ChildRecord } from "@/lib/mock-data";
+import { store, UserRecord, ChildRecord, ClassroomRecord } from "@/lib/mock-data";
 import { getUsersAction, createUserAction, updateUserAction, toggleUserStatusAction, deleteUserAction } from "@/lib/actions/users";
 import { getAllChildrenAction } from "@/lib/actions/children";
+import { getClassroomsAction } from "@/lib/actions/classrooms";
 import CloudinaryUploader from "@/components/ui/CloudinaryUploader";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import AuthGuard from "@/components/auth/AuthGuard";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
+  const [classrooms, setClassrooms] = useState<ClassroomRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   
@@ -52,6 +55,9 @@ export default function AdminUsersPage() {
     role: "parent" as "administrator" | "caregiver" | "parent",
     isActive: true,
     avatarUrl: "",
+    // Caregiver assignment
+    primaryClassroomId: "",
+    contactPhone: "",
     // Child association
     childMode: "existing" as "existing" | "new" | "none",
     existingChildId: "",
@@ -75,6 +81,15 @@ export default function AdminUsersPage() {
     }
   };
 
+  const loadClassrooms = async () => {
+    const res = await getClassroomsAction();
+    if (res.success && res.classrooms) {
+      setClassrooms(res.classrooms);
+    } else {
+      setClassrooms(store.getClassrooms());
+    }
+  };
+
   const loadChildren = async () => {
     const res = await getAllChildrenAction("administrator");
     if (res.success && res.children) {
@@ -93,6 +108,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     loadUsers();
+    loadClassrooms();
     loadChildren();
   }, []);
 
@@ -110,9 +126,11 @@ export default function AdminUsersPage() {
       name: "",
       email: "",
       password: "",
-      role: "parent",
+      role: "caregiver",
       isActive: true,
-      avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80",
+      avatarUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80",
+      primaryClassroomId: classrooms[0]?.id || "",
+      contactPhone: "+880 1711-223344",
       childMode: "existing",
       existingChildId: availableChildren[0]?.id || "",
       relationship: "Mother",
@@ -137,6 +155,8 @@ export default function AdminUsersPage() {
       role: user.role,
       isActive: user.isActive,
       avatarUrl: user.avatarUrl || "",
+      primaryClassroomId: user.primaryClassroomId || classrooms[0]?.id || "",
+      contactPhone: "+880 1711-223344",
       childMode: "none",
       existingChildId: "",
       relationship: "",
@@ -163,6 +183,11 @@ export default function AdminUsersPage() {
       isActive: formData.isActive,
       avatarUrl: formData.avatarUrl,
     };
+
+    if (formData.role === "caregiver") {
+      payload.primaryClassroomId = formData.primaryClassroomId;
+      payload.contactPhone = formData.contactPhone;
+    }
 
     if (formData.role === "parent") {
       payload.childMode = formData.childMode;
@@ -195,7 +220,7 @@ export default function AdminUsersPage() {
       return;
     }
 
-    setFormSuccess("User account & child association created successfully!");
+    setFormSuccess("User account created successfully!");
     loadUsers();
     loadChildren();
     setTimeout(() => {
@@ -219,6 +244,10 @@ export default function AdminUsersPage() {
     };
     if (formData.password && formData.password.trim().length > 0) {
       updates.password = formData.password.trim();
+    }
+    if (formData.role === "caregiver") {
+      updates.primaryClassroomId = formData.primaryClassroomId;
+      updates.contactPhone = formData.contactPhone;
     }
 
     const res = await updateUserAction("administrator", editingUser.id, updates);
@@ -419,7 +448,15 @@ export default function AdminUsersPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          {getRoleBadge(user.role)}
+                          <div className="space-y-1">
+                            <div>{getRoleBadge(user.role)}</div>
+                            {user.role === "caregiver" && user.classroomName && (
+                              <div className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                <School className="w-3 h-3 text-emerald-600" />
+                                {user.classroomName}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           {user.isActive ? (
@@ -573,6 +610,55 @@ export default function AdminUsersPage() {
                       <option value="administrator">Administrator</option>
                     </select>
                   </div>
+
+                  {/* Caregiver Classroom Assignment Section (Fetched from DB) */}
+                  {formData.role === "caregiver" && (
+                    <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                          <School className="w-4 h-4 text-emerald-600" />
+                          Classroom Assignment (From Database) *
+                        </label>
+                        <span className="text-[11px] text-emerald-700 font-medium">
+                          {classrooms.length} classroom{classrooms.length === 1 ? "" : "s"} available
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-slate-700">Assigned Classroom *</label>
+                          <select
+                            required
+                            value={formData.primaryClassroomId}
+                            onChange={(e) => setFormData({ ...formData, primaryClassroomId: e.target.value })}
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+                          >
+                            <option value="">-- Select Classroom --</option>
+                            {classrooms.map((cls) => (
+                              <option key={cls.id} value={cls.id}>
+                                {cls.name} ({cls.ageRange})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-slate-700">Staff Contact Phone</label>
+                          <input
+                            type="tel"
+                            value={formData.contactPhone}
+                            onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                            placeholder="+880 1711-223344"
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-emerald-800">
+                        Children enrolled in this selected classroom will automatically populate in this caregiver's daily routines and attendance panel.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Child Association Section for Parents (REQ 3) */}
                   {!editingUser && formData.role === "parent" && (

@@ -48,22 +48,37 @@ export async function getUsersAction(currentRole: string): Promise<UserActionRes
 
   try {
     const dbUsers = await db.select().from(users);
+    const dbCaregivers = await db.select().from(caregivers);
+    const dbClassrooms = await db.select().from(classrooms);
+    const roomMap = new Map(dbClassrooms.map((c) => [c.id, c.name]));
+
     if (dbUsers.length > 0) {
-      const mapped: UserRecord[] = dbUsers.map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        passwordHash: u.passwordHash,
-        role: u.role as any,
-        isActive: u.isActive,
-        createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : new Date().toISOString(),
-        updatedAt: u.updatedAt ? new Date(u.updatedAt).toISOString() : new Date().toISOString(),
-      }));
+      const mapped: UserRecord[] = dbUsers.map((u) => {
+        const cg = dbCaregivers.find((c) => c.userId === u.id);
+        const roomName = cg?.primaryClassroomId ? roomMap.get(cg.primaryClassroomId) : undefined;
+
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          passwordHash: u.passwordHash,
+          role: u.role as any,
+          isActive: u.isActive,
+          primaryClassroomId: cg?.primaryClassroomId || undefined,
+          classroomName: roomName,
+          createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : new Date().toISOString(),
+          updatedAt: u.updatedAt ? new Date(u.updatedAt).toISOString() : new Date().toISOString(),
+        };
+      });
 
       // Keep store updated
       mapped.forEach((u) => {
-        if (!store.getUserById(u.id)) {
+        const existing = store.getUserById(u.id);
+        if (!existing) {
           store.addUser(u);
+        } else {
+          if (u.primaryClassroomId) existing.primaryClassroomId = u.primaryClassroomId;
+          if (u.classroomName) existing.classroomName = u.classroomName;
         }
       });
 
@@ -89,6 +104,9 @@ export async function createUserAction(
     role: "administrator" | "caregiver" | "parent";
     isActive?: boolean;
     avatarUrl?: string;
+    // Caregiver parameters
+    primaryClassroomId?: string;
+    contactPhone?: string;
     // Child association parameters for parent accounts
     childMode?: "existing" | "new" | "none";
     existingChildId?: string;
@@ -249,6 +267,56 @@ export async function createUserAction(
     }
   }
 
+  // If role is caregiver, create/link caregiver profile with selected classroom
+  if (data.role === "caregiver") {
+    if (isUUID(newUser.id)) {
+      try {
+        let assignedRoomId: string | null = null;
+        if (data.primaryClassroomId && isUUID(data.primaryClassroomId)) {
+          const roomCheck = await db.select().from(classrooms).where(eq(classrooms.id, data.primaryClassroomId)).limit(1);
+          if (roomCheck[0]) assignedRoomId = roomCheck[0].id;
+        }
+
+        const [createdCg] = await db
+          .insert(caregivers)
+          .values({
+            userId: newUser.id,
+            contactPhone: data.contactPhone?.trim() || "+880 1711-000000",
+            contactEmail: cleanEmail,
+            primaryClassroomId: assignedRoomId,
+            isMedicalAuthorized: true,
+          })
+          .onConflictDoUpdate({
+            target: [caregivers.userId],
+            set: {
+              primaryClassroomId: assignedRoomId,
+              contactPhone: data.contactPhone?.trim() || "+880 1711-000000",
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+
+        if (createdCg && assignedRoomId) {
+          await db
+            .insert(caregiverClassrooms)
+            .values({
+              caregiverId: createdCg.id,
+              classroomId: assignedRoomId,
+            })
+            .onConflictDoNothing();
+        }
+      } catch (cgErr) {
+        console.warn("DB caregiver profile creation note:", cgErr);
+      }
+    }
+
+    if (data.primaryClassroomId) {
+      newUser.primaryClassroomId = data.primaryClassroomId;
+      const room = store.getClassroomById(data.primaryClassroomId);
+      if (room) newUser.classroomName = room.name;
+    }
+  }
+
   safeRevalidate("/admin/users");
   safeRevalidate("/admin/children");
   safeRevalidate("/admin");
@@ -271,6 +339,8 @@ export async function updateUserAction(
     role?: "administrator" | "caregiver" | "parent";
     isActive?: boolean;
     avatarUrl?: string;
+    primaryClassroomId?: string;
+    contactPhone?: string;
   }
 ): Promise<UserActionResult> {
   if (!canManageUsers(currentRole)) {
@@ -307,6 +377,45 @@ export async function updateUserAction(
       if (updates.isActive !== undefined) patch.isActive = updates.isActive;
 
       await db.update(users).set(patch).where(eq(users.id, userId));
+
+      // If user is caregiver, update caregiver profile & primary classroom
+      const effectiveRole = updates.role || user?.role;
+      if (effectiveRole === "caregiver" && updates.primaryClassroomId !== undefined) {
+        let assignedRoomId: string | null = null;
+        if (updates.primaryClassroomId && isUUID(updates.primaryClassroomId)) {
+          const roomCheck = await db.select().from(classrooms).where(eq(classrooms.id, updates.primaryClassroomId)).limit(1);
+          if (roomCheck[0]) assignedRoomId = roomCheck[0].id;
+        }
+
+        const [upsertedCg] = await db
+          .insert(caregivers)
+          .values({
+            userId: userId,
+            contactPhone: updates.contactPhone || "+880 1711-000000",
+            contactEmail: updates.email || user?.email || "caregiver@kiddieops.com",
+            primaryClassroomId: assignedRoomId,
+            isMedicalAuthorized: true,
+          })
+          .onConflictDoUpdate({
+            target: [caregivers.userId],
+            set: {
+              primaryClassroomId: assignedRoomId,
+              contactPhone: updates.contactPhone || undefined,
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+
+        if (upsertedCg && assignedRoomId) {
+          await db
+            .insert(caregiverClassrooms)
+            .values({
+              caregiverId: upsertedCg.id,
+              classroomId: assignedRoomId,
+            })
+            .onConflictDoNothing();
+        }
+      }
     } catch (err) {
       console.warn("DB update note in updateUserAction:", err);
     }
@@ -332,10 +441,12 @@ export async function updateUserAction(
   if (updates.role) patchData.role = updates.role;
   if (updates.isActive !== undefined) patchData.isActive = updates.isActive;
   if (updates.avatarUrl !== undefined) patchData.avatarUrl = updates.avatarUrl;
+  if (updates.primaryClassroomId !== undefined) patchData.primaryClassroomId = updates.primaryClassroomId;
 
   const updatedUser = store.updateUser(userId, patchData);
   safeRevalidate("/admin/users");
   safeRevalidate("/admin");
+  safeRevalidate("/caregiver");
   return { success: true, user: updatedUser || undefined };
 }
 

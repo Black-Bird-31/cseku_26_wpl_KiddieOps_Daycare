@@ -24,6 +24,8 @@ export interface UserRecord {
   isActive: boolean;
   avatarAssetId?: string;
   avatarUrl?: string;
+  primaryClassroomId?: string;
+  classroomName?: string;
   createdAt: string;
   updatedAt: string;
 }

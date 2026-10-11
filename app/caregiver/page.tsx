@@ -305,16 +305,14 @@ export default function CaregiverDashboardPage() {
   const loadDashboard = useCallback(async (classroomId?: string) => {
     setLoading(true);
     const currentUser = getStoredUser();
-    const effectiveRoomId = classroomId !== undefined ? classroomId : (selectedClassroomId || "all");
-    const res = await getCaregiverDashboardDataAction(currentUser?.id, effectiveRoomId);
+    // If classroomId explicitly provided, use it; otherwise pass selectedClassroomId or undefined to let server resolve caregiver's assigned room
+    const requestedRoomId = classroomId !== undefined ? classroomId : (selectedClassroomId || undefined);
+    const res = await getCaregiverDashboardDataAction(currentUser?.id, requestedRoomId);
 
     if (res.success) {
       setData(res);
-      if (effectiveRoomId) {
-        setSelectedClassroomId(effectiveRoomId);
-      } else if (res.activeClassroom?.id) {
-        setSelectedClassroomId(res.activeClassroom.id);
-      }
+      const activeId = res.activeClassroom?.id || "all";
+      setSelectedClassroomId(requestedRoomId || activeId);
 
       // Select first child by default or keep current if still in room
       setSelectedChildId((prev) => {
