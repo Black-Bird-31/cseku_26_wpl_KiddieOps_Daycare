@@ -3,14 +3,14 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { 
-  Sun, 
-  Lock, 
-  Mail, 
-  ShieldCheck, 
-  HeartHandshake, 
-  Baby, 
-  AlertCircle, 
+import {
+  Sun,
+  Lock,
+  Mail,
+  ShieldCheck,
+  HeartHandshake,
+  Baby,
+  AlertCircle,
   ArrowRight,
   Sparkles,
   KeyRound,
@@ -176,22 +176,6 @@ function LoginForm() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Credentials Switcher - Admin Only */}
-          <div className="pt-4 border-t border-slate-100 space-y-2">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block text-center">
-              Quick Admin Access
-            </span>
-            <button
-              type="button"
-              onClick={() => handleFillDemo("admin@kiddieops.com", "admin123")}
-              className="w-full p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-center transition-all cursor-pointer group flex items-center justify-center gap-2"
-            >
-              <ShieldCheck className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-bold text-slate-800">Primary Administrator</span>
-              <span className="text-[10px] text-slate-400 font-mono">admin@kiddieops.com</span>
-            </button>
-          </div>
         </div>
 
         {/* Back to Home */}
