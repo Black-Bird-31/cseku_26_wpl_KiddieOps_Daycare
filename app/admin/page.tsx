@@ -209,63 +209,73 @@ export default function AdminDashboardPage() {
   return (
     <AuthGuard allowedRoles={["administrator"]}>
       <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-        {/* Persistent Left Sidebar Navigation */}
-        <aside className="w-full md:w-64 bg-white border-r border-slate-200 p-5 flex flex-col justify-between space-y-6">
-          <div className="space-y-6">
-            <div className="flex items-center gap-2 px-2 py-1">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                <Shield className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="font-bold text-slate-900 text-sm">Admin Control</div>
-                <div className="text-[11px] text-slate-500">Daycare Governance</div>
+        {/* Left Sidebar Navigation - Responsive for Mobile & Desktop */}
+        <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200 p-4 sm:p-5 flex flex-col justify-between space-y-4 md:space-y-6">
+          <div className="space-y-4 md:space-y-6">
+            <div className="flex items-center justify-between md:justify-start gap-2 px-2 py-1">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                  <Shield className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900 text-sm">Admin Control</div>
+                  <div className="text-[11px] text-slate-500">Daycare Governance</div>
+                </div>
               </div>
             </div>
 
-            <nav className="space-y-1">
+            <nav className="flex md:flex-col overflow-x-auto md:overflow-visible gap-1.5 md:space-y-1 pb-2 md:pb-0 scrollbar-none">
               <button
                 onClick={() => setActiveTab("overview")}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                className={`whitespace-nowrap flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === "overview"
                     ? "bg-blue-50 text-blue-700 border border-blue-200"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
-                <LayoutDashboard className="w-4 h-4 text-blue-600" />
-                Dashboard Overview
+                <LayoutDashboard className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                <span>Overview</span>
               </button>
 
               <Link
                 href="/admin/users"
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
+                className="whitespace-nowrap flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
               >
-                <Users className="w-4 h-4 text-slate-500" />
-                Staff & Parents Directory
+                <Users className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <span>Staff & Parents</span>
               </Link>
 
               <Link
                 href="/admin/children"
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
+                className="whitespace-nowrap flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
               >
-                <Baby className="w-4 h-4 text-slate-500" />
-                Enrolled Children Roster
+                <Baby className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <span>Children Roster</span>
+              </Link>
+
+              <Link
+                href="/admin/classrooms"
+                className="whitespace-nowrap flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
+              >
+                <School className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <span>Classrooms</span>
               </Link>
 
               <Link
                 href="/admin/attendance"
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
+                className="whitespace-nowrap flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
               >
-                <Calendar className="w-4 h-4 text-slate-500" />
-                Attendance & Leave Requests
+                <Calendar className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <span>Attendance</span>
               </Link>
 
               <Link
                 href="/admin/complaints"
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
+                className="whitespace-nowrap flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
               >
-                <div className="flex items-center gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-rose-500" />
-                  <span>Parent Complaints</span>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-500 flex-shrink-0" />
+                  <span>Complaints</span>
                 </div>
                 {pendingComplaintsCount > 0 && (
                   <span className="px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold">
@@ -276,11 +286,11 @@ export default function AdminDashboardPage() {
 
               <Link
                 href="/admin/notices"
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
+                className="whitespace-nowrap flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
               >
-                <div className="flex items-center gap-2.5">
-                  <BellRing className="w-4 h-4 text-slate-500" />
-                  <span>Center Notices</span>
+                <div className="flex items-center gap-2">
+                  <BellRing className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                  <span>Notices</span>
                 </div>
                 <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">
                   {notices.length}
@@ -290,7 +300,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Quick Actions Footer */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs hidden md:block">
             <div className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Quick Operations</div>
             <Link
               href="/admin/children"
@@ -308,7 +318,7 @@ export default function AdminDashboardPage() {
         </aside>
 
         {/* Main Admin Workspace */}
-        <main className="flex-1 p-6 sm:p-8 space-y-8 max-w-6xl">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-6xl w-full">
           {/* Top Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
             <div>

@@ -334,10 +334,10 @@ export default function AdminUsersPage() {
 
   return (
     <AuthGuard allowedRoles={["administrator"]}>
-      <div className="min-h-screen bg-slate-50 p-6 sm:p-8">
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Breadcrumb Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <Link
               href="/admin"
               className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition-colors"
@@ -362,10 +362,10 @@ export default function AdminUsersPage() {
           )}
 
           {/* Header Banner */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="font-child text-2xl sm:text-3xl font-extrabold text-slate-900 flex items-center gap-2.5">
-                <Users className="w-7 h-7 text-blue-600" />
+              <h1 className="font-child text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 flex items-center gap-2.5">
+                <Users className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600 flex-shrink-0" />
                 Staff & Parents Directory
               </h1>
               <p className="text-slate-500 text-xs sm:text-sm mt-1">
@@ -375,7 +375,7 @@ export default function AdminUsersPage() {
 
             <button
               onClick={handleOpenAddModal}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer flex-shrink-0"
             >
               <UserPlus className="w-4 h-4" />
               Add New User
@@ -383,7 +383,7 @@ export default function AdminUsersPage() {
           </div>
 
           {/* Search & Filter Toolbar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
             <div className="relative w-full sm:w-80">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
@@ -395,13 +395,13 @@ export default function AdminUsersPage() {
               />
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-              <span className="text-xs text-slate-500 font-semibold">Filter:</span>
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 sm:pb-0">
+              <span className="text-xs text-slate-500 font-semibold flex-shrink-0">Filter:</span>
               {["all", "administrator", "caregiver", "parent"].map((role) => (
                 <button
                   key={role}
                   onClick={() => setRoleFilter(role)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
                     roleFilter === role
                       ? "bg-blue-600 text-white shadow-xs"
                       : "bg-slate-100 text-slate-600 hover:text-slate-900"

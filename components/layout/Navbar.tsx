@@ -17,7 +17,9 @@ import {
   School,
   Users,
   Clock,
-  BellRing
+  BellRing,
+  Menu,
+  X
 } from "lucide-react";
 import { getStoredUser, clearStoredUser } from "@/lib/auth-client";
 import { SessionUser } from "@/lib/auth";
@@ -27,11 +29,17 @@ export default function Navbar() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const checkAuth = () => {
     const user = getStoredUser();
     setCurrentUser(user);
   };
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setUserDropdownOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     checkAuth();
@@ -335,8 +343,198 @@ export default function Navbar() {
               </Link>
             </div>
           )}
+
+          {/* Mobile Menu Toggle Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+            aria-label="Toggle mobile menu"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Drawer Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 shadow-lg animate-in slide-in-from-top-2">
+          {currentUser ? (
+            <>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={currentUser.avatarUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"}
+                    alt={currentUser.name}
+                    className="w-8 h-8 rounded-lg object-cover border border-slate-300"
+                  />
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">{currentUser.name}</div>
+                    <div className="text-[10px] text-slate-500">{currentUser.email}</div>
+                  </div>
+                </div>
+                {getRoleBadge(currentUser.role)}
+              </div>
+
+              <div className="space-y-1">
+                {currentUser.role === "administrator" ? (
+                  <>
+                    <Link
+                      href="/admin"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/admin" ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <LayoutDashboard className="w-4 h-4 text-blue-600" />
+                      Dashboard Overview
+                    </Link>
+                    <Link
+                      href="/admin/classrooms"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/admin/classrooms" ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <School className="w-4 h-4 text-emerald-600" />
+                      Classroom Management
+                    </Link>
+                    <Link
+                      href="/admin/children"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/admin/children" ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <Baby className="w-4 h-4 text-amber-600" />
+                      Enrolled Children
+                    </Link>
+                    <Link
+                      href="/admin/users"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/admin/users" ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <Users className="w-4 h-4 text-purple-600" />
+                      Staff & Parents Directory
+                    </Link>
+                    <Link
+                      href="/admin/complaints"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/admin/complaints" ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <ShieldAlert className="w-4 h-4 text-rose-600" />
+                      Parent Complaints
+                    </Link>
+                    <Link
+                      href="/admin/notices"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/admin/notices" ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <BellRing className="w-4 h-4 text-blue-600" />
+                      Center Notices
+                    </Link>
+                  </>
+                ) : currentUser.role === "caregiver" ? (
+                  <>
+                    <Link
+                      href="/caregiver"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/caregiver" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <LayoutDashboard className="w-4 h-4 text-emerald-600" />
+                      Classroom Portal
+                    </Link>
+                    <Link
+                      href="/caregiver/attendance"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/caregiver/attendance" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <Clock className="w-4 h-4 text-emerald-600" />
+                      Attendance Sheet
+                    </Link>
+                    <Link
+                      href="/caregiver/notices"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/caregiver/notices" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <BellRing className="w-4 h-4 text-amber-500" />
+                      Center Notices
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/parent"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/parent" ? "bg-amber-50 text-amber-800 border border-amber-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <Baby className="w-4 h-4 text-amber-600" />
+                      Child Dashboard
+                    </Link>
+                    <Link
+                      href="/parent/notices"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/parent/notices" ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <BellRing className="w-4 h-4 text-blue-600" />
+                      Center Notices
+                    </Link>
+                    <Link
+                      href="/parent/complaints"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold ${
+                        pathname === "/parent/complaints" ? "bg-rose-50 text-rose-700 border border-rose-200" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <ShieldAlert className="w-4 h-4 text-rose-600" />
+                      Report Incident / Complaint
+                    </Link>
+                  </>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 text-rose-600" />
+                  Sign Out of KiddieOps
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Link
+                href="/login"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                <LogIn className="w-4 h-4" />
+                Sign In to Portal
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }

@@ -721,21 +721,21 @@ export default function ParentDashboardPage() {
               {/* ============================================================ */}
               {/* Parent Navigation Tabs (Aligning with WF-09, WF-10, WF-13, WF-14) */}
               {/* ============================================================ */}
-              <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
                 <button
                   onClick={() => setActiveTab("overview")}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`whitespace-nowrap flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeTab === "overview"
                       ? "bg-blue-600 text-white shadow-xs"
                       : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                   }`}
                 >
-                  <Activity className="w-4 h-4" /> Daily Routine & AI Guardian
+                  <Activity className="w-4 h-4" /> Routine & AI Guardian
                 </button>
 
                 <button
                   onClick={() => setActiveTab("notices")}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`whitespace-nowrap flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeTab === "notices"
                       ? "bg-amber-500 text-slate-950 shadow-xs"
                       : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
@@ -746,35 +746,35 @@ export default function ParentDashboardPage() {
 
                 <button
                   onClick={() => setActiveTab("gallery")}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`whitespace-nowrap flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeTab === "gallery"
                       ? "bg-purple-600 text-white shadow-xs"
                       : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                   }`}
                 >
-                  <Camera className="w-4 h-4" /> Media Moments Gallery ({liveFeed.mediaPosts.length})
+                  <Camera className="w-4 h-4" /> Moments Gallery ({liveFeed.mediaPosts.length})
                 </button>
 
                 <button
                   onClick={() => setActiveTab("medical")}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`whitespace-nowrap flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeTab === "medical"
                       ? "bg-rose-600 text-white shadow-xs"
                       : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                   }`}
                 >
-                  <HeartPulse className="w-4 h-4" /> Medical Records & Health
+                  <HeartPulse className="w-4 h-4" /> Medical Health
                 </button>
 
                 <button
                   onClick={() => setActiveTab("attendance")}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  className={`whitespace-nowrap flex-shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeTab === "attendance"
                       ? "bg-emerald-600 text-white shadow-xs"
                       : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                   }`}
                 >
-                  <Calendar className="w-4 h-4" /> Attendance & Leave Request
+                  <Calendar className="w-4 h-4" /> Attendance & Leave
                 </button>
               </div>
 

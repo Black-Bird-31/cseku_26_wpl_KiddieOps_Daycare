@@ -213,14 +213,14 @@ export default function AdminAttendancePage() {
           </div>
 
           {/* Header Card with Classroom & Date Pickers */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 flex-shrink-0">
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
-                  <h1 className="font-child text-2xl font-extrabold text-slate-900">
+                  <h1 className="font-child text-xl sm:text-2xl font-extrabold text-slate-900">
                     Attendance & Leave Request Management
                   </h1>
                   <p className="text-xs text-slate-500">
@@ -231,15 +231,15 @@ export default function AdminAttendancePage() {
             </div>
 
             {/* Controls */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+              <div className="w-full sm:w-auto">
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                   Classroom
                 </label>
                 <select
                   value={selectedClassroomId || "all"}
                   onChange={(e) => handleClassroomChange(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white shadow-2xs focus:outline-hidden focus:border-blue-500 cursor-pointer"
+                  className="w-full sm:w-auto px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white shadow-2xs focus:outline-hidden focus:border-blue-500 cursor-pointer"
                 >
                   <option value="all">All Classrooms (Center-Wide)</option>
                   {data?.classrooms.map((r) => (
@@ -250,7 +250,7 @@ export default function AdminAttendancePage() {
                 </select>
               </div>
 
-              <div>
+              <div className="w-full sm:w-auto">
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                   Attendance Date
                 </label>
@@ -258,11 +258,11 @@ export default function AdminAttendancePage() {
                   type="date"
                   value={attendanceDate}
                   onChange={(e) => setAttendanceDate(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white shadow-2xs focus:outline-hidden focus:border-blue-500 cursor-pointer"
+                  className="w-full sm:w-auto px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white shadow-2xs focus:outline-hidden focus:border-blue-500 cursor-pointer"
                 />
               </div>
 
-              <div className="pt-4 sm:pt-4">
+              <div className="self-end sm:self-auto sm:pt-4">
                 <button
                   onClick={() => loadData(selectedClassroomId)}
                   disabled={loading}
@@ -299,11 +299,11 @@ export default function AdminAttendancePage() {
           )}
 
           {/* Navigation Tabs */}
-          <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
             <button
               type="button"
               onClick={() => setActiveView("leaves")}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${
                 activeView === "leaves"
                   ? "bg-blue-600 text-white shadow-xs"
                   : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
@@ -321,7 +321,7 @@ export default function AdminAttendancePage() {
             <button
               type="button"
               onClick={() => setActiveView("sheet")}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${
                 activeView === "sheet"
                   ? "bg-blue-600 text-white shadow-xs"
                   : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
